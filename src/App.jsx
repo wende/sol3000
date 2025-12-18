@@ -1,9 +1,12 @@
-import { onMount, onCleanup, createMemo } from 'solid-js';
+import { onMount, onCleanup, createMemo, Show } from 'solid-js';
 import { createGameState } from './utils/gameState';
 import { GalaxyMap } from './components/game/GalaxyMap';
 import { Sidebar } from './components/game/Sidebar';
 import { StatsPanel } from './components/game/StatsPanel';
 import { CommandBar } from './components/game/CommandBar';
+import { BackgroundGrid } from './components/common/BackgroundGrid';
+import { StartGameButton } from './components/common/StartGameButton';
+import { VignetteOverlay } from './components/common/VignetteOverlay';
 
 export default function App() {
   // Initialize game state with real-time tick system
@@ -51,6 +54,9 @@ export default function App() {
   const playerSystemsCount = createMemo(() =>
     gameState.galaxyData().systems.filter(s => s.owner === 'Player').length
   );
+
+  // Use isGameActive for button visibility (immediate), homeSystemId for UI panels (after zoom)
+  const hasGameStarted = createMemo(() => gameState.homeSystemId() !== null);
 
   return (
     <div class="relative w-full h-screen bg-black overflow-hidden font-mono text-white select-none">
@@ -119,14 +125,14 @@ export default function App() {
         }
 
         @keyframes starPulse {
-          0%, 100% { opacity: 0.8; }
+          0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
         }
 
         /* Simpler animation for LOD low - only opacity, no filters */
         @keyframes starPulseSlow {
-          0%, 100% { opacity: 0.7; }
-          50% { opacity: 0.9; }
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
 
         @keyframes ftlFlow {
@@ -174,17 +180,17 @@ export default function App() {
 
         .star {
           animation: starPulse 4s ease-in-out infinite;
-          filter: drop-shadow(0 0 6px rgba(255,255,255,0.5));
+          filter: drop-shadow(0 0 8px rgba(255,255,255,0.65));
         }
 
         /* LOD (Level of Detail) optimizations - only applied when zoomed out */
         .star.lod-ultra-low {
-          animation: none !important;
+          animation: starPulseSlow 6s ease-in-out infinite !important;
           filter: none !important;
         }
 
         .star.lod-low {
-          animation: starPulseSlow 6s ease-in-out infinite !important;
+          animation: starPulseSlow 5s ease-in-out infinite !important;
           filter: none !important;
         }
 
@@ -221,10 +227,7 @@ export default function App() {
           will-change: transform, opacity;
         }
 
-        .galaxy-map-svg {
-          opacity: 0;
-          animation: fadeInUp 1s ease-out 0.2s forwards;
-        }
+        /* Galaxy map fade is now controlled by parent container */
 
         /* Progress bar animation */
         .progress-fill {
@@ -239,10 +242,13 @@ export default function App() {
       `}</style>
 
       {/* 1. Background Grid */}
-      <div class="absolute inset-0 grid-bg pointer-events-none" />
+      <BackgroundGrid />
 
       {/* 2. Full Screen Map Container */}
-      <div class="absolute inset-0 overflow-hidden">
+      <div
+        class="absolute inset-0 overflow-hidden transition-opacity duration-300"
+        style={{ opacity: gameState.isGameActive() ? 1 : 0 }}
+      >
         <GalaxyMap
           data={gameState.galaxyData()}
           onSystemSelect={handleSystemSelect}
@@ -252,32 +258,40 @@ export default function App() {
           zoomLevel={gameState.zoomLevel()}
           setZoomLevel={gameState.setZoomLevel}
           ships={gameState.ships()}
+          visibleSystems={gameState.visibleSystems()}
+          fogTransitioning={gameState.fogTransitioning()}
         />
       </div>
 
-      {/* 3. UI Overlays */}
+      {/* 3. UI Overlays - only shown when game is active */}
+      <Show when={hasGameStarted()}>
+        {/* Sidebar now handles system selection */}
+        <Sidebar
+          system={selectedSystem()}
+          onClose={() => gameState.setSelectedSystemId(null)}
+          gameState={gameState}
+        />
 
-      {/* Sidebar now handles system selection */}
-      <Sidebar
-        system={selectedSystem()}
-        onClose={() => gameState.setSelectedSystemId(null)}
-        gameState={gameState}
-      />
+        {/* Stats Moved to Left - Now shows real-time resources */}
+        <StatsPanel
+          resources={gameState.resources()}
+          productionRates={gameState.productionRates()}
+          energyState={gameState.energyState()}
+          systemsOwned={playerSystemsCount()}
+          maxSystems={gameState.galaxyData().systems.length}
+          tech={gameState.tech()}
+        />
 
-      {/* Stats Moved to Left - Now shows real-time resources */}
-      <StatsPanel
-        resources={gameState.resources()}
-        productionRates={gameState.productionRates()}
-        systemsOwned={playerSystemsCount()}
-        maxSystems={gameState.galaxyData().systems.length}
-        onNewGame={gameState.newGame}
-        tech={gameState.tech()}
-      />
+        <CommandBar gameState={gameState} />
+      </Show>
 
-      <CommandBar gameState={gameState} />
+      {/* Start New Game Button - shown when no game is active */}
+      <Show when={!gameState.isGameActive()}>
+        <StartGameButton onClick={() => gameState.newGame()} />
+      </Show>
 
       {/* Vignette Overlay (lighter now for better visibility) */}
-      <div class="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_20%,rgba(0,0,0,0.6)_100%)]" />
+      <VignetteOverlay />
     </div>
   );
 }

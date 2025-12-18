@@ -1,8 +1,10 @@
-import { createSignal, createEffect, Show, For } from 'solid-js';
-import { X, Crosshair, Shield, Rocket, MapPin } from 'lucide-solid';
+import { createSignal, createEffect, onCleanup, Show, For } from 'solid-js';
+import { X, Crosshair, Shield, Rocket } from 'lucide-solid';
 import { GlassPanel } from '../common/GlassPanel';
-import { ProgressBar } from '../common/ProgressBar';
 import { BuildingList } from './BuildingList';
+import { SystemStatsGrid } from './SystemStatsGrid';
+import { ConstructionQueueItem } from './ConstructionQueueItem';
+import { DestinationSelector } from './DestinationSelector';
 
 /**
  * @typedef {Object} SidebarProps
@@ -19,6 +21,11 @@ import { BuildingList } from './BuildingList';
 export const Sidebar = (props) => {
   const isOpen = () => !!props.system;
   const [view, setView] = createSignal('overview'); // 'overview' | 'buildings' | 'launch'
+  const [now, setNow] = createSignal(Date.now());
+
+  // Timer for updating progress bars
+  const timer = setInterval(() => setNow(Date.now()), 100);
+  onCleanup(() => clearInterval(timer));
 
   // Reset view when system changes or closes
   createEffect(() => {
@@ -114,21 +121,10 @@ export const Sidebar = (props) => {
 
             <Show when={view() === 'overview'}>
               {/* Stats Grid */}
-              <div class="grid grid-cols-2 gap-4">
-                <div class="p-4 bg-white/5 border border-white/10 rounded-sm">
-                  <span class="text-[10px] text-gray-400 tracking-widest block mb-1">POPULATION</span>
-                  <span id="sidebar-pop-value" class="text-xl text-white">{props.system.population}</span>
-                </div>
-                <div class="p-4 bg-white/5 border border-white/10 rounded-sm">
-                  <span class="text-[10px] text-gray-400 tracking-widest block mb-1">RESOURCES</span>
-                  <span
-                    id="sidebar-res-value"
-                    class={`text-xl ${props.system.resources === 'Rich' ? 'text-green-400' : props.system.resources === 'Poor' ? 'text-red-400' : 'text-gray-300'}`}
-                  >
-                    {props.system.resources.toUpperCase()}
-                  </span>
-                </div>
-              </div>
+              <SystemStatsGrid
+                population={props.system.population}
+                resources={props.system.resources}
+              />
 
               {/* Ownership */}
               <div class="pb-6 border-b border-white/10">
@@ -169,28 +165,13 @@ export const Sidebar = (props) => {
                 <div class="pb-6 border-b border-white/10">
                   <span class="text-[10px] text-gray-500 tracking-widest block mb-3">CONSTRUCTION</span>
                   <For each={props.system.constructionQueue}>
-                    {(item, index) => {
-                      const elapsed = Date.now() - item.startTime;
-                      const progress = Math.min(100, (elapsed / item.duration) * 100);
-                      const remaining = Math.max(0, item.duration - elapsed) / 1000;
-                      const isActive = index() === 0;
-
-                      return (
-                        <div class={`p-3 rounded mb-2 ${isActive ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-white/5 border border-white/10'}`}>
-                          <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs capitalize">
-                              {item.target === 'colonyShip' ? 'Colony Ship' : item.target.replace(/([A-Z])/g, ' $1').trim()}
-                            </span>
-                            <span class="text-[10px] text-gray-500">
-                              {isActive ? `${Math.floor(remaining)}s` : 'Queued'}
-                            </span>
-                          </div>
-                          <Show when={isActive}>
-                            <ProgressBar progress={progress} color="bg-blue-400" />
-                          </Show>
-                        </div>
-                      );
-                    }}
+                    {(item, index) => (
+                      <ConstructionQueueItem
+                        item={item}
+                        isActive={index() === 0}
+                        now={now()}
+                      />
+                    )}
                   </For>
                 </div>
               </Show>
@@ -249,44 +230,10 @@ export const Sidebar = (props) => {
             </Show>
 
             <Show when={view() === 'launch'}>
-              <div class="space-y-4">
-                <div class="text-center mb-6">
-                  <Rocket size={32} class="mx-auto text-green-400 mb-2" />
-                  <h3 class="text-lg tracking-widest">SELECT DESTINATION</h3>
-                  <p class="text-xs text-gray-500 mt-1">Choose an unclaimed system to colonize</p>
-                </div>
-
-                <Show when={reachableSystems().length === 0}>
-                  <div class="text-center py-8 text-gray-500">
-                    <MapPin size={24} class="mx-auto mb-2 opacity-50" />
-                    <p class="text-sm">No reachable unclaimed systems</p>
-                  </div>
-                </Show>
-
-                <For each={reachableSystems()}>
-                  {({ system: dest, hops }) => (
-                    <button
-                      onClick={() => handleLaunchShip(dest.id)}
-                      class="w-full p-4 border border-white/20 hover:border-green-500/50 hover:bg-green-500/10 rounded transition-all text-left"
-                    >
-                      <div class="flex items-center justify-between">
-                        <div>
-                          <span class="text-sm font-medium">{dest.name}</span>
-                          <div class="flex items-center gap-3 mt-1">
-                            <span class={`text-[10px] ${dest.resources === 'Rich' ? 'text-green-400' : dest.resources === 'Poor' ? 'text-red-400' : 'text-gray-400'}`}>
-                              {dest.resources}
-                            </span>
-                          </div>
-                        </div>
-                        <div class="text-right">
-                          <span class="text-xs text-blue-400">{hops} hops</span>
-                          <div class="text-[10px] text-gray-500">{hops * 60}s travel</div>
-                        </div>
-                      </div>
-                    </button>
-                  )}
-                </For>
-              </div>
+              <DestinationSelector
+                destinations={reachableSystems()}
+                onSelect={handleLaunchShip}
+              />
             </Show>
 
           </div>

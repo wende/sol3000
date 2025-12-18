@@ -1,6 +1,7 @@
 import { onMount, createEffect, Show, For, createMemo } from 'solid-js';
 import * as d3 from 'd3';
 import { MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from '../../utils/galaxy';
+import { FTLTethers } from './FTLTethers';
 
 /**
  * @typedef {Object} GalaxyMapProps
@@ -14,6 +15,7 @@ import { MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from '../../utils/galaxy';
  * @property {number} zoomLevel - Current zoom level
  * @property {Function} setZoomLevel - Setter for zoom level
  * @property {Array} ships - Array of ships (docked and in transit)
+ * @property {Object} visibleSystems - Fog of war visibility data { visibleIds, farthestSystem }
  */
 
 /**
@@ -36,6 +38,7 @@ export const GalaxyMap = (props) => {
     zoomBehavior = d3.zoom()
       .scaleExtent([0.1, 3.0])
       .translateExtent([[-1000, -1000], [MAP_WIDTH + 1000, MAP_HEIGHT + 1000]])
+      .clickDistance(5) // Allow up to 5px movement and still register as click
       .on('zoom', (e) => {
         d3.select(gRef).attr('transform', e.transform);
         // Update zoom level for LOD (Level of Detail)
@@ -78,13 +81,29 @@ export const GalaxyMap = (props) => {
       .call(zoomBehavior.transform, transform);
   };
 
+  // Reset view to show full galaxy (zoomed out)
+  const resetToFullGalaxy = () => {
+    if (!svgRef || !zoomBehavior) return;
+
+    const svg = d3.select(svgRef);
+    const initialScale = 0.45;
+
+    const translateX = (window.innerWidth / 2) - (CENTER_X * initialScale);
+    const translateY = (window.innerHeight / 2) - (CENTER_Y * initialScale);
+
+    svg.transition()
+      .duration(500)
+      .call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(initialScale));
+  };
+
   // Auto-zoom to home system when it's first selected
   createEffect(() => {
     const homeId = props.homeSystemId;
 
-    // Reset flag when home is cleared (new game started)
+    // Reset view when home is cleared (new game started)
     if (!homeId) {
       hasZoomedToHome = false;
+      resetToFullGalaxy();
       return;
     }
 
@@ -120,10 +139,58 @@ export const GalaxyMap = (props) => {
     lastClickId = sys.id;
   };
 
+  // Filter systems based on fog of war visibility
+  // Show ALL systems when no home is set (cinematic intro) or during fog transition
+  const visibleSystemsFiltered = createMemo(() => {
+    const visibility = props.visibleSystems;
+    // Show all systems if no fog of war data OR no home system yet (intro) OR transitioning
+    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !props.homeSystemId || props.fogTransitioning) {
+      return props.data.systems;
+    }
+    return props.data.systems.filter(s => visibility.visibleIds.has(s.id));
+  });
+
+  // Check if a system is within fog of war visibility
+  const isSystemVisible = (systemId) => {
+    const visibility = props.visibleSystems;
+    if (!visibility?.visibleIds || visibility.visibleIds.size === 0) return true;
+    return visibility.visibleIds.has(systemId);
+  };
+
+  // Filter routes to only show connections between visible systems
+  // Show ALL routes when no home is set (cinematic intro) or during fog transition
+  const visibleRoutesFiltered = createMemo(() => {
+    const visibility = props.visibleSystems;
+    // Show all routes if no fog of war data OR no home system yet (intro) OR transitioning
+    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !props.homeSystemId || props.fogTransitioning) {
+      return props.data.routes;
+    }
+    return props.data.routes.filter(r =>
+      visibility.visibleIds.has(r.source.id) && visibility.visibleIds.has(r.target.id)
+    );
+  });
+
+  // Check if a route is within fog of war visibility
+  const isRouteVisible = (route) => {
+    const visibility = props.visibleSystems;
+    if (!visibility?.visibleIds || visibility.visibleIds.size === 0) return true;
+    return visibility.visibleIds.has(route.source.id) && visibility.visibleIds.has(route.target.id);
+  };
+
+  // Get tether routes from 2-hop systems to unseen 3-hop systems
+  const tetherRoutes = createMemo(() => {
+    const visibility = props.visibleSystems;
+    return visibility?.tetherRoutes || [];
+  });
+
   // Calculate ship positions for transit ships
   const transitShips = createMemo(() => {
     const ships = props.ships || [];
-    return ships.filter(s => s.status === 'transit').map(ship => {
+    const visibility = props.visibleSystems;
+    return ships.filter(s => s.status === 'transit').filter(ship => {
+      // Only show ships if destination is visible
+      return visibility?.visibleIds?.has(ship.destinationId);
+    }).map(ship => {
       if (!ship.route || ship.route.length === 0) return null;
 
       const systems = props.data.systems;
@@ -196,6 +263,7 @@ export const GalaxyMap = (props) => {
           <stop offset="100%" stop-color="transparent" />
         </linearGradient>
 
+
         {/* Simple noise pattern for turbulence */}
         <filter id="turbulence">
           <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
@@ -214,18 +282,29 @@ export const GalaxyMap = (props) => {
       <g ref={gRef} class="gpu-accelerated">
         {/* FTL Lines - Hidden when zoomed out for performance */}
         <Show when={props.zoomLevel >= 0.25}>
-          <For each={props.data.routes}>
-            {(route) => (
-              <line
-                x1={route.source.x}
-                y1={route.source.y}
-                x2={route.target.x}
-                y2={route.target.y}
-                class="ftl-line"
-              />
-            )}
+          <For each={visibleRoutesFiltered()}>
+            {(route) => {
+              const visible = () => isRouteVisible(route);
+              const shouldFade = () => props.fogTransitioning && !visible();
+              return (
+                <line
+                  x1={route.source.x}
+                  y1={route.source.y}
+                  x2={route.target.x}
+                  y2={route.target.y}
+                  class="ftl-line"
+                  style={{
+                    opacity: shouldFade() ? 0 : 1,
+                    transition: 'opacity 700ms ease-out'
+                  }}
+                />
+              );
+            }}
           </For>
         </Show>
+
+        {/* Tether Lines - Shows connections from 2-hop systems to unseen 3-hop systems */}
+        <FTLTethers routes={tetherRoutes()} />
 
         {/* Ships in Transit */}
         <For each={transitShips()}>
@@ -269,11 +348,11 @@ export const GalaxyMap = (props) => {
           )}
         </For>
 
-        {/* Ripples Layer */}
+        {/* Ripples Layer - Only show ripples for visible systems */}
         <For each={props.ripples}>
           {(ripple) => {
             const sys = props.data.systems.find(s => s.id === ripple.systemId);
-            if (!sys) return null;
+            if (!sys || !props.visibleSystems?.visibleIds?.has(sys.id)) return null;
             return (
               <circle
                 cx={sys.x}
@@ -286,11 +365,13 @@ export const GalaxyMap = (props) => {
         </For>
 
         {/* Star Systems */}
-        <For each={props.data.systems}>
+        <For each={visibleSystemsFiltered()}>
           {(sys) => {
             const isSelected = () => props.selectedSystemId === sys.id;
             const isHome = () => props.homeSystemId === sys.id;
             const isOwned = () => sys.owner === 'Player';
+            const visible = () => isSystemVisible(sys.id);
+            const shouldFade = () => props.fogTransitioning && !visible();
             // LOD class based on zoom level - only apply optimizations when zoomed OUT
             const lodClass = () => {
               if (props.zoomLevel < 0.2) return 'lod-ultra-low';
@@ -303,7 +384,18 @@ export const GalaxyMap = (props) => {
                 transform={`translate(${sys.x}, ${sys.y})`}
                 onClick={(e) => handleSystemClick(e, sys)}
                 class="group cursor-pointer"
+                style={{
+                  opacity: shouldFade() ? 0 : 1,
+                  transition: 'opacity 700ms ease-out'
+                }}
               >
+                {/* Invisible larger hit area for easier clicking */}
+                <circle
+                  r={sys.size + 20}
+                  fill="transparent"
+                  class="pointer-events-auto"
+                />
+
                 {/* Ownership indicator ring */}
                 <Show when={isOwned() && !isHome()}>
                   <circle
@@ -342,6 +434,7 @@ export const GalaxyMap = (props) => {
                   r={sys.size}
                   fill={sys.color}
                   class={`star ${lodClass()} ${isSelected() ? 'selected-glow' : ''}`}
+                  style={`animation-delay: -${(sys.id * 0.3) % 4}s;`}
                 />
 
                 {/* Hover Ring - shown on hover */}

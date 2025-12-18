@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup } from 'solid-js';
+import { createSignal, createEffect, onCleanup, createMemo } from 'solid-js';
 import { generateGalaxy } from './galaxy';
 
 const STORAGE_KEY = 'sol3000_game_state';
@@ -12,36 +12,41 @@ export const BUILDINGS = {
     id: 'oreMine',
     name: 'Ore Mine',
     description: 'Extracts raw ore from the planet.',
-    baseCost: { ore: 50, energy: 10, credits: 0 },
+    baseCost: { ore: 50, credits: 0 },
     costFactor: 1.15,
-    production: { ore: 0.5, energy: 0, credits: 0 },
+    production: { ore: 0.5, credits: 0 },
+    energyUsage: 2, // Energy consumed per level
     buildTime: 30000 // 30 seconds
   },
   solarPlant: {
     id: 'solarPlant',
     name: 'Solar Plant',
-    description: 'Generates energy from stellar radiation.',
-    baseCost: { ore: 30, energy: 0, credits: 0 },
+    description: 'Provides energy capacity from stellar radiation.',
+    baseCost: { ore: 30, credits: 0 },
     costFactor: 1.15,
-    production: { ore: 0, energy: 0.3, credits: 0 },
+    production: { ore: 0, credits: 0 },
+    energyCapacity: 5, // Energy capacity provided per level
+    energyUsage: 0,
     buildTime: 20000 // 20 seconds
   },
   tradeHub: {
     id: 'tradeHub',
     name: 'Trade Hub',
     description: 'Facilitates commerce and generates credits.',
-    baseCost: { ore: 80, energy: 20, credits: 0 },
+    baseCost: { ore: 80, credits: 0 },
     costFactor: 1.15,
-    production: { ore: 0, energy: 0, credits: 0.2 },
+    production: { ore: 0, credits: 0.2 },
+    energyUsage: 3, // Energy consumed per level
     buildTime: 45000 // 45 seconds
   },
   shipyard: {
     id: 'shipyard',
     name: 'Shipyard',
     description: 'Constructs spacecraft for colonization.',
-    baseCost: { ore: 200, energy: 50, credits: 100 },
+    baseCost: { ore: 200, credits: 100 },
     costFactor: 1.15,
-    production: { ore: 0, energy: 0, credits: 0 },
+    production: { ore: 0, credits: 0 },
+    energyUsage: 5, // Energy consumed per level
     buildTime: 120000 // 120 seconds
   }
 };
@@ -62,7 +67,7 @@ export const TECH_TREE = {
   advancedReactors: {
     id: 'advancedReactors',
     name: 'Advanced Reactors',
-    description: '+25% Energy production',
+    description: '+25% Energy capacity',
     cost: 400,
     researchTime: 180000,
     requires: ['efficientMining'],
@@ -110,7 +115,8 @@ export const TECH_TREE = {
  * Colony ship definition
  */
 export const COLONY_SHIP = {
-  cost: { ore: 500, energy: 200, credits: 300 },
+  cost: { ore: 500, credits: 300 },
+  energyUsage: 10, // Energy consumed while docked
   buildTime: 180000, // 180 seconds
   travelTimePerHop: 60000 // 60 seconds per FTL hop
 };
@@ -125,6 +131,112 @@ const RESOURCE_MULTIPLIERS = {
 };
 
 /**
+ * Calculate visible systems based on fog of war (2 hops from all colonized planets)
+ * Also returns tether routes (connections from 2-hop systems to unseen 3-hop systems)
+ */
+export function calculateVisibleSystems(galaxy, homeSystemId) {
+  if (!homeSystemId || !galaxy.systems.length) {
+    return { visibleIds: new Set(), tetherRoutes: [] };
+  }
+
+  // Find all Player-owned systems (colonized planets)
+  const colonizedSystems = galaxy.systems.filter(s => s.owner === 'Player');
+  if (colonizedSystems.length === 0) {
+    return { visibleIds: new Set(), tetherRoutes: [] };
+  }
+
+  // Build adjacency map from routes
+  const adjacency = {};
+  galaxy.systems.forEach(s => adjacency[s.id] = []);
+  galaxy.routes.forEach(r => {
+    adjacency[r.source.id].push(r.target.id);
+    adjacency[r.target.id].push(r.source.id);
+  });
+
+  // BFS to find systems within 2 hops from ANY colonized planet
+  const visibleIds = new Set();
+  const queue = []; // [systemId, distance]
+  const visited = new Set();
+
+  // Initialize BFS from all colonized systems
+  for (const colonized of colonizedSystems) {
+    visibleIds.add(colonized.id);
+    visited.add(colonized.id);
+    queue.push([colonized.id, 0]);
+  }
+
+  while (queue.length > 0) {
+    const [currentId, distance] = queue.shift();
+
+    if (distance < 2) {
+      const neighbors = adjacency[currentId] || [];
+      for (const neighborId of neighbors) {
+        if (!visited.has(neighborId)) {
+          visited.add(neighborId);
+          visibleIds.add(neighborId);
+          queue.push([neighborId, distance + 1]);
+        }
+      }
+    }
+  }
+
+  // Find tether routes: connections from 2-hop systems to 3-hop systems
+  const tetherRoutes = [];
+
+  // Build full distance map up to 3 hops from ALL colonized systems
+  const distanceMap = new Map();
+  const bfsQueue = [];
+
+  // Initialize distance map from all colonized systems
+  for (const colonized of colonizedSystems) {
+    distanceMap.set(colonized.id, 0);
+    bfsQueue.push([colonized.id, 0]);
+  }
+
+  while (bfsQueue.length > 0) {
+    const [currentId, distance] = bfsQueue.shift();
+
+    // Continue traversing up to distance 3 to map all systems
+    if (distance < 3) {
+      const neighbors = adjacency[currentId] || [];
+      for (const neighborId of neighbors) {
+        if (!distanceMap.has(neighborId)) {
+          distanceMap.set(neighborId, distance + 1);
+          bfsQueue.push([neighborId, distance + 1]);
+        }
+      }
+    }
+  }
+
+  // For each visible system at exactly 2 hops, find neighbors at 3 hops and create tether routes
+  for (const systemId of visibleIds) {
+    const distance = distanceMap.get(systemId);
+    if (distance !== 2) continue;
+
+    const neighbors = adjacency[systemId] || [];
+    const source = galaxy.systems.find(s => s.id === systemId);
+    if (!source) continue;
+
+    for (const neighborId of neighbors) {
+      const neighborDistance = distanceMap.get(neighborId);
+      // If neighbor is at 3 hops (not visible), create a tether route
+      if (neighborDistance === 3) {
+        const target = galaxy.systems.find(s => s.id === neighborId);
+        if (target) {
+          tetherRoutes.push({
+            source,
+            target,
+            id: `tether-${systemId}-${neighborId}`
+          });
+        }
+      }
+    }
+  }
+
+  return { visibleIds, tetherRoutes };
+}
+
+/**
  * Calculate building cost at a given level
  */
 export function getBuildingCost(buildingId, level) {
@@ -132,7 +244,6 @@ export function getBuildingCost(buildingId, level) {
   const factor = Math.pow(building.costFactor, level);
   return {
     ore: Math.floor(building.baseCost.ore * factor),
-    energy: Math.floor(building.baseCost.energy * factor),
     credits: Math.floor(building.baseCost.credits * factor)
   };
 }
@@ -175,19 +286,25 @@ export function createGameState() {
   const [homeSystemId, setHomeSystemId] = createSignal(null);
   const [ripples, setRipples] = createSignal([]);
   const [zoomLevel, setZoomLevel] = createSignal(0.45);
+  const [isGameActive, setIsGameActive] = createSignal(false); // True as soon as newGame is called
+  const [fogTransitioning, setFogTransitioning] = createSignal(false); // True during fog of war fade animation
 
-  // Real-time resource signals
+  // Real-time resource signals (energy is now capacity-based, not accumulated)
   const [resources, setResources] = createSignal({
     ore: 100,
-    energy: 50,
     credits: 200
   });
 
   // Production rates (calculated each tick, exposed for UI)
   const [productionRates, setProductionRates] = createSignal({
     ore: 0,
-    energy: 0,
     credits: 0
+  });
+
+  // Energy capacity and usage (static values, not accumulated)
+  const [energyState, setEnergyState] = createSignal({
+    capacity: 50, // Starting energy capacity
+    usage: 0
   });
 
   // Ships in transit
@@ -199,10 +316,56 @@ export function createGameState() {
     current: null // { id, startTime, duration }
   });
 
+  // Fog of War - Memoized visible systems calculation
+  const visibleSystems = createMemo(() => {
+    return calculateVisibleSystems(galaxyData(), homeSystemId());
+  });
+
   // Game tick reference
   let tickInterval = null;
   let lastTickTime = Date.now();
   let saveTimeout = null;
+
+  /**
+   * Calculate energy capacity and usage across all owned systems
+   */
+  const calculateEnergyState = () => {
+    const galaxy = galaxyData();
+    const ownedSystems = galaxy.systems.filter(s => s.owner === 'Player');
+    const techBonuses = calculateTechBonuses(tech().researched);
+    const dockedShips = ships().filter(s => s.status === 'docked');
+
+    let capacity = 50; // Base capacity
+    let usage = 0;
+
+    ownedSystems.forEach(system => {
+      const buildings = system.buildings || {};
+
+      // Solar Plant provides capacity
+      const solarPlantLevel = buildings.solarPlant?.level || 0;
+      capacity += solarPlantLevel * BUILDINGS.solarPlant.energyCapacity;
+
+      // Other buildings consume energy
+      const oreMineLevel = buildings.oreMine?.level || 0;
+      usage += oreMineLevel * BUILDINGS.oreMine.energyUsage;
+
+      const tradeHubLevel = buildings.tradeHub?.level || 0;
+      usage += tradeHubLevel * BUILDINGS.tradeHub.energyUsage;
+
+      const shipyardLevel = buildings.shipyard?.level || 0;
+      usage += shipyardLevel * BUILDINGS.shipyard.energyUsage;
+    });
+
+    // Docked ships consume energy
+    dockedShips.forEach(() => {
+      usage += COLONY_SHIP.energyUsage;
+    });
+
+    // Apply tech bonus to capacity
+    capacity *= techBonuses.energy * techBonuses.all;
+
+    return { capacity: Math.floor(capacity), usage };
+  };
 
   /**
    * Calculate total production rates from all owned systems
@@ -211,9 +374,12 @@ export function createGameState() {
     const galaxy = galaxyData();
     const ownedSystems = galaxy.systems.filter(s => s.owner === 'Player');
     const techBonuses = calculateTechBonuses(tech().researched);
+    const energy = calculateEnergyState();
+
+    // Efficiency penalty if over capacity
+    const efficiencyMult = energy.usage > energy.capacity ? 0.5 : 1.0;
 
     let oreRate = 0;
-    let energyRate = 0;
     let creditsRate = 0;
 
     ownedSystems.forEach(system => {
@@ -224,21 +390,16 @@ export function createGameState() {
       const oreMineLevel = buildings.oreMine?.level || 0;
       oreRate += oreMineLevel * BUILDINGS.oreMine.production.ore * mult;
 
-      // Energy production
-      const solarPlantLevel = buildings.solarPlant?.level || 0;
-      energyRate += solarPlantLevel * BUILDINGS.solarPlant.production.energy * mult;
-
       // Credits production
       const tradeHubLevel = buildings.tradeHub?.level || 0;
       creditsRate += tradeHubLevel * BUILDINGS.tradeHub.production.credits * mult;
     });
 
-    // Apply tech bonuses
-    oreRate *= techBonuses.ore * techBonuses.all;
-    energyRate *= techBonuses.energy * techBonuses.all;
-    creditsRate *= techBonuses.credits * techBonuses.all;
+    // Apply tech bonuses and efficiency penalty
+    oreRate *= techBonuses.ore * techBonuses.all * efficiencyMult;
+    creditsRate *= techBonuses.credits * techBonuses.all * efficiencyMult;
 
-    return { ore: oreRate, energy: energyRate, credits: creditsRate };
+    return { ore: oreRate, credits: creditsRate };
   };
 
   /**
@@ -367,10 +528,9 @@ export function createGameState() {
 
     setGalaxyData({ ...galaxy, systems: updatedSystems });
 
-    // Bonus resources on colonization
+    // Bonus resources on colonization (ore only, energy is capacity-based)
     setResources(r => ({
       ore: r.ore + 50,
-      energy: r.energy + 20,
       credits: r.credits
     }));
   };
@@ -413,13 +573,17 @@ export function createGameState() {
     lastTickTime = now;
     const deltaSec = deltaMs / 1000;
 
+    // Update energy state (static capacity, not accumulated)
+    const energy = calculateEnergyState();
+    setEnergyState(energy);
+
     // Calculate and apply production
     const rates = calculateProductionRates();
     setProductionRates(rates);
 
+    // Only accumulate ore and credits (energy is static capacity)
     setResources(r => ({
       ore: r.ore + rates.ore * deltaSec,
-      energy: r.energy + rates.energy * deltaSec,
       credits: r.credits + rates.credits * deltaSec
     }));
 
@@ -483,16 +647,15 @@ export function createGameState() {
       return false;
     }
 
-    // Check resources
+    // Check resources (energy is now capacity-based, not spent)
     const res = resources();
-    if (res.ore < cost.ore || res.energy < cost.energy || res.credits < cost.credits) {
+    if (res.ore < cost.ore || res.credits < cost.credits) {
       return false;
     }
 
-    // Deduct resources
+    // Deduct resources (only ore and credits)
     setResources(r => ({
       ore: r.ore - cost.ore,
-      energy: r.energy - cost.energy,
       credits: r.credits - cost.credits
     }));
 
@@ -650,10 +813,17 @@ export function createGameState() {
 
         setGalaxyData(state.galaxyData || generateGalaxy());
         setHomeSystemId(state.homeSystemId || null);
-        setResources(state.resources || { ore: 100, energy: 50, credits: 200 });
+        // Handle both old and new resource format
+        const savedResources = state.resources || { ore: 100, credits: 200 };
+        setResources({ ore: savedResources.ore || 100, credits: savedResources.credits || 200 });
         setShips(state.ships || []);
         setTech(state.tech || { researched: [], current: null });
         setZoomLevel(state.zoomLevel || 0.45);
+        // Mark game as active if we have a home system
+        if (state.homeSystemId) {
+          setIsGameActive(true);
+        }
+        // Energy state will be recalculated from buildings
         startGameLoop();
         return true;
       }
@@ -676,9 +846,24 @@ export function createGameState() {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
       try {
+        const galaxy = galaxyData();
+        const home = homeSystemId();
+
+        // Guard: Don't save if galaxy is empty (likely during hot reload initialization)
+        if (!galaxy.systems || galaxy.systems.length === 0) {
+          return;
+        }
+
+        // Guard: Don't save if we have Player systems but no homeSystemId
+        // This would create a corrupted save
+        const playerSystems = galaxy.systems.filter(s => s.owner === 'Player');
+        if (playerSystems.length > 0 && !home) {
+          return;
+        }
+
         const state = {
-          galaxyData: galaxyData(),
-          homeSystemId: homeSystemId(),
+          galaxyData: galaxy,
+          homeSystemId: home,
           resources: resources(),
           ships: ships(),
           tech: tech(),
@@ -701,6 +886,7 @@ export function createGameState() {
     // Clear localStorage first to prevent corrupted state
     localStorage.removeItem(STORAGE_KEY);
 
+    // Generate galaxy and prepare data FIRST (before fade)
     const newGalaxy = generateGalaxy();
 
     // Reset all systems - only keep Enemy status, remove any Player ownership
@@ -711,14 +897,20 @@ export function createGameState() {
       constructionQueue: undefined
     }));
 
+    // Set all state synchronously so galaxy is ready to display
     setGalaxyData({ ...newGalaxy, systems: resetSystems });
     setSelectedSystemId(null);
     setHomeSystemId(null);
-    setResources({ ore: 100, energy: 50, credits: 200 });
+    setResources({ ore: 100, credits: 200 });
+    setEnergyState({ capacity: 50, usage: 0 });
     setShips([]);
     setTech({ researched: [], current: null });
     setRipples([]);
     setZoomLevel(0.45);
+    startGameLoop();
+
+    // NOW trigger the fade-in (galaxy data is ready)
+    setIsGameActive(true);
 
     // Pick a random home system after 1 second
     setTimeout(() => {
@@ -728,6 +920,9 @@ export function createGameState() {
         const homeSystem = candidates[Math.floor(Math.random() * candidates.length)] || resetSystems.find(s => s.owner === 'Unclaimed');
 
         if (homeSystem) {
+          // Start fog transition BEFORE setting home (keeps all systems visible during fade)
+          setFogTransitioning(true);
+
           setHomeSystemId(homeSystem.id);
 
           // Initialize home system as Player-owned
@@ -748,6 +943,9 @@ export function createGameState() {
 
           setGalaxyData({ ...newGalaxy, systems: updatedSystems });
 
+          // End fog transition after fade completes
+          setTimeout(() => setFogTransitioning(false), 800);
+
           // Save immediately (bypass debounce) to ensure home system persists
           const state = {
             galaxyData: { ...newGalaxy, systems: updatedSystems },
@@ -762,13 +960,12 @@ export function createGameState() {
         }
       }
     }, 1000);
-
-    startGameLoop();
   };
 
   // Auto-save when important values change
   createEffect(() => {
     galaxyData();
+    homeSystemId(); // Must track this to save home system changes
     resources();
     ships();
     tech();
@@ -787,15 +984,19 @@ export function createGameState() {
     setRipples,
     zoomLevel,
     setZoomLevel,
+    isGameActive, // True when game has been started (hides start button)
+    fogTransitioning, // True during fog of war fade animation
 
     // Real-time state
     resources,
     setResources,
     productionRates,
+    energyState, // Static energy capacity and usage
     ships,
     setShips,
     tech,
     setTech,
+    visibleSystems, // Fog of War - visible systems within 2 hops
 
     // Actions
     loadState,

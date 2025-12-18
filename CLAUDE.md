@@ -83,10 +83,12 @@ State flows down via props; callbacks flow up for updates.
 - Ripple effects triggered by system selection, cleanup after 1s
 
 **Styling Philosophy**
+- **NO TAILWIND CSS** - This project uses pure CSS only. Do not use Tailwind utility classes.
 - All animations in `<style>` block in App.jsx using CSS keyframes
 - Hardware-accelerated transforms (`will-change`, GPU-accelerated properties)
 - Glassmorphism via `backdrop-filter: blur(16px)` with rgba backgrounds
 - Black (#000000) background with white (#ffffff) text and UI elements
+- Use inline styles or CSS files for component styling
 
 **Component Patterns**
 - Use JSDoc type annotations for props (see GlassPanel.jsx, GalaxyMap.jsx examples)
@@ -173,3 +175,21 @@ Implemented in App.jsx:36-48
 - Space: Next turn
 - Escape: Deselect system
 - Add new shortcuts by extending the `handleKeyDown` function
+- You don't have to run npm dev every time. The server has hot code reloading
+
+## Documentation File Naming Convention
+
+Technical decision records and implementation notes live in `docs/` with the following naming pattern:
+
+**Format:** `XXX-description-with-dashes.md`
+
+- **XXX**: Sequential three-digit number (001, 002, 003, etc.)
+- **Description**: Kebab-case (hyphens, no underscores)
+- **File Extension**: `.md`
+
+**Examples:**
+- `001-initial-setup-hardware-acceleration.md` - Initial setup decisions
+- `002-LOD-and-hardware-acceleration.md` - Performance optimizations
+- `005-tether-gradient-fade-issues.md` - Technical challenges and solutions
+
+These docs capture decisions, debugging findings, and architectural rationale that don't fit in code comments.
