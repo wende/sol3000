@@ -59,7 +59,7 @@ src/
 SolidJS signals are used for reactive state, primarily managed in `App.jsx`:
 - `galaxyData()` - Systems and routes from `generateGalaxy()`
 - `selectedSystemId()` - Currently selected star system
-- `turn()`, `credits()` - Game state counters
+- `gameState` - Real-time game state (resources, ships, tech, construction queues)
 - `ripples()` - Transient UI effects
 - `zoomLevel()` - LOD (Level of Detail) optimization trigger
 
@@ -171,8 +171,7 @@ it('should do something', () => {
 - Use `will-change` CSS property sparingly; already applied to critical animations
 
 **Keyboard Shortcuts**
-Implemented in App.jsx:36-48
-- Space: Next turn
+Implemented in App.jsx
 - Escape: Deselect system
 - Add new shortcuts by extending the `handleKeyDown` function
 - You don't have to run npm dev every time. The server has hot code reloading

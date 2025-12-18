@@ -45,6 +45,16 @@ Energy is a **static capacity** resource, not accumulating:
 - Remaining systems are unclaimed
 - Systems are claimed by landing colony ships
 
+### Fog of War
+- Systems are only visible within **2 hops** of any colonized system
+- Visibility expands automatically as new systems are colonized
+- Hidden systems appear as unknown until within range
+
+### Tether Routes
+- FTL routes connecting visible systems (2 hops) to hidden systems (3+ hops) appear as faded "tether" lines
+- Indicates unexplored territory just beyond current visibility
+- Tethers disappear once the destination system becomes visible
+
 ---
 
 ## Buildings
@@ -117,6 +127,15 @@ Efficient Mining ──► Advanced Reactors ──► Warp Drives
 
 ---
 
+## Save/Load
+
+- Game state automatically saves to localStorage every second (debounced)
+- Saves: galaxy data, home system, resources, ships, tech progress, zoom level
+- Automatically loads on page refresh
+- Corrupted saves (e.g., player systems without valid home) are detected and reset
+
+---
+
 ## Planned Features (Future Phases)
 
 ### Combat System
@@ -134,7 +153,5 @@ Efficient Mining ──► Advanced Reactors ──► Warp Drives
 - Difficulty levels (Easy, Normal, Hard)
 
 ### Additional Systems
-- Fog of war / system exploration
 - Diplomacy and trade routes
 - Random events
-- Save/Load functionality

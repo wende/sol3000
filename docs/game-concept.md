@@ -2,9 +2,9 @@
 
 ## Overview
 
-A minimalist **turn-based 4X strategy game** set in space. Players explore a procedurally generated galaxy, expand their empire by colonizing star systems, exploit resources, and compete with AI opponents.
+A minimalist **real-time idle/incremental 4X strategy game** set in space. Players explore a procedurally generated galaxy, expand their empire by colonizing star systems, exploit resources through automatic production, and build up their civilization.
 
-The game emphasizes clarity and strategic decision-making over complexity, with a focus on elegant presentation and smooth interactions.
+The game emphasizes clarity and strategic decision-making over complexity, with a focus on elegant presentation, smooth interactions, and satisfying progression loops inspired by idle/incremental games like Cookie Clicker.
 
 ## Core 4X Pillars
 
@@ -15,10 +15,10 @@ The game emphasizes clarity and strategic decision-making over complexity, with 
 - **Route Discovery**: FTL routes become visible when both connected systems are explored
 
 ### 2. eXpand
-- **Colonization**: Click unexplored system → Send colony ship → Claim ownership
+- **Colonization**: Build colony ships → Launch to unclaimed systems → Claim ownership on arrival
 - **Territory Control**: Owned systems have distinct visual indicator (brighter glow)
-- **Expansion Strategy**: Limited resources force strategic choices about which systems to colonize
-- **Population Growth**: Colonized systems grow population each turn
+- **Expansion Strategy**: Resource costs and build times force strategic choices about which systems to colonize
+- **Automatic Growth**: Colonized systems produce resources continuously in real-time
 
 ### 3. eXploit
 - **Resource Types**:
@@ -31,39 +31,32 @@ The game emphasizes clarity and strategic decision-making over complexity, with 
   - Upgrades (population boost, defense)
 
 ### 4. eXterminate
-- **Fleet Combat**: Ships can engage enemy fleets
-- **Turn-Based Resolution**: Combat resolves instantly at turn end
+- **Fleet Combat**: Ships can engage enemy fleets (future enhancement)
+- **Real-Time Resolution**: Combat resolves when fleets meet
 - **Simple Combat Model**: Attacker vs Defender strength comparison
 - **System Capture**: Defeat all defending ships to capture system
 
 ## Game Flow
 
 ### Initial State
-1. Player starts with 1 home system (center of map)
-2. 24 other systems are unexplored
-3. Starting resources: 100 credits, 1 scout ship
-4. Turn counter: 1
+1. Player starts with 1 home system
+2. Other systems are unclaimed
+3. Starting resources: 100 Ore, 50 Energy, 200 Credits
+4. Real-time game tick runs at 10 ticks/second
 
-### Turn Sequence
+### Real-Time Game Loop
 
-**Player Phase:**
-1. **Move ships** - Click ship → Click destination → Route is calculated
-2. **Build units** - Click system → Select build option → Spend credits
-3. **Research** (future) - Unlock new technologies
-4. **Diplomacy** (future) - Interact with AI empires
+**Continuous Updates (every 100ms):**
+1. **Resource Production** - All owned systems generate Ore, Energy, Credits based on building levels
+2. **Construction Progress** - Building and ship construction timers tick down
+3. **Ship Movement** - Ships in transit move along FTL routes toward destinations
+4. **Research Progress** - Active tech research progresses toward completion
 
-**Resolution Phase** (when player clicks "Next Turn")
-1. Ships move along their routes (progress += speed)
-2. Ships arriving at systems trigger events:
-   - Scout ships reveal unexplored systems
-   - Colony ships colonize unowned systems
-   - Combat ships engage enemies
-3. Combat resolves (if any)
-4. Resources are collected:
-   - Population generates credits
-   - Systems produce queued units (if production complete)
-5. AI empires take their turns
-6. Turn counter increments
+**Player Actions (anytime):**
+1. **Build structures** - Click system → Select building → Queue construction
+2. **Build ships** - Requires Shipyard → Queue colony ships
+3. **Launch ships** - Select docked ship → Choose destination → Ship travels automatically
+4. **Research tech** - Open tech panel → Select available tech → Research begins
 
 ### Victory Conditions
 
@@ -80,13 +73,13 @@ The game emphasizes clarity and strategic decision-making over complexity, with 
 
 **Pathfinding:**
 - Ships travel along FTL routes only (no free movement)
-- Multi-hop routes calculated automatically (A* algorithm)
-- Movement speed: 1 system per 3 turns (configurable)
+- Multi-hop routes calculated automatically (BFS algorithm)
+- Travel time: 60 seconds per FTL hop (reduced by Warp Drives tech)
 
 **Visual Feedback:**
-- Selected ship shows destination line
-- Moving ship animates along the route
-- Progress indicator (ship position on line)
+- Ships animate smoothly along routes in real-time
+- Trail effect shows ship direction
+- Destination line shows final target system
 
 ### System Management
 
@@ -121,20 +114,24 @@ Defender Strength = Sum of defending ships + System defense bonus
 
 ### Resource Economy
 
-**Credit Generation:**
+**Three Resource Types:**
+- **Ore** - Primary building material, produced by Ore Mines
+- **Energy** - Powers construction, produced by Solar Plants
+- **Credits** - Universal currency, produced by Trade Hubs
+
+**Production Rates:**
 ```
-Credits per turn = Sum of (System Population × 10)
+rate = buildingLevel × baseRate × resourceMultiplier × techBonus
 ```
+
+**Building Costs (scale at 1.15× per level):**
+- Ore Mine: 50 Ore, 10 Energy (builds in 30s)
+- Solar Plant: 30 Ore (builds in 20s)
+- Trade Hub: 80 Ore, 20 Energy (builds in 45s)
+- Shipyard: 200 Ore, 50 Energy, 100 Credits (builds in 120s)
 
 **Ship Costs:**
-- Scout Ship: 50 credits (speed: fast, combat: 0)
-- Colony Ship: 100 credits (speed: slow, combat: 0)
-- Fighter: 80 credits (speed: medium, combat: 1)
-- Cruiser: 200 credits (speed: slow, combat: 3)
-
-**System Upgrades:**
-- Population Growth: 150 credits (increases population by 5)
-- Defense Station: 300 credits (adds +2 defense to system)
+- Colony Ship: 500 Ore, 200 Energy, 300 Credits (builds in 180s, reduced by Shipyard level)
 
 ## AI Behavior (Phase 2)
 
@@ -173,25 +170,21 @@ Production      Scout Ship (2 turns)
 ═════════════════════
 ```
 
-**Stats Panel (Right):**
+**Stats Panel (Top-Left):**
 ```
-═════════════
- TURN 23
-─────────────
-Credits
-1,240
-
-Systems
-12 / 25
-
-Fleet Size
-8 ships
-═════════════
+═════════════════════════
+ ORE      1,240  +2.5/s
+ ENERGY     580  +1.2/s
+ CREDITS  2,100  +0.8/s
+─────────────────────────
+ DOMINION  12 / 120
+ [RESEARCH: Warp Drives 45%]
+═════════════════════════
 ```
 
 **Command Bar (Bottom):**
 ```
-[NEXT TURN (Space)]  [RESEARCH]  [DIPLOMACY]
+[TECH]  [FLEET]
 ```
 
 ### Feedback Systems
@@ -218,13 +211,13 @@ Fleet Size
 
 ### Mid-Term Goals
 1. Control half the galaxy (13 systems)
-2. Achieve 500 credits per turn
+2. Achieve 5 credits/second production rate
 3. Defeat one AI empire
 
 ### Long-Term Goals
 1. Complete victory condition
 2. Win on Hard difficulty
-3. Win in under 50 turns (speedrun)
+3. Achieve victory in under 30 minutes (speedrun)
 
 ### Replayability Factors
 - **Random galaxy generation**: Different layout each game
@@ -242,7 +235,7 @@ Fleet Size
 - **Random events**: Space anomalies, pirates, trade opportunities
 
 ### Phase 3 Features
-- **Multiplayer**: Hot-seat or online turn-based
+- **Multiplayer**: Online real-time competitive
 - **Custom maps**: Map editor for creating scenarios
 - **Achievements**: Track player accomplishments
 - **Statistics**: Detailed end-game reports
@@ -258,11 +251,11 @@ Fleet Size
 ## Design Constraints
 
 ### Scope Limitations (Phase 1)
-- **No real-time**: Turn-based only
-- **Simple combat**: No tactical positioning
-- **Limited unit types**: 4 ship types maximum
-- **No story**: Pure sandbox gameplay
-- **Single-player only**: AI opponents only
+- **Session-based**: Progress only while tab is open (no offline catch-up)
+- **Simple combat**: No tactical positioning (future enhancement)
+- **Limited unit types**: Colony ships only for MVP
+- **No story**: Pure sandbox/idle gameplay
+- **Single-player only**: No multiplayer
 
 ### Technical Constraints
 - **Browser-based**: Must run in modern browsers
@@ -285,7 +278,8 @@ Fleet Size
 
 ### Gameplay References
 - **Stellaris**: Galaxy exploration and expansion
-- **Civilization**: Turn-based 4X structure
+- **Cookie Clicker**: Idle/incremental progression loops
+- **OGame**: Browser-based real-time strategy with build queues
 - **FTL**: Route-based ship movement
 - **Into the Breach**: Minimalist strategy presentation
 

@@ -63,13 +63,19 @@ function BlackHoleVisuals() {
   return (
     <>
       <div class="black-hole-system" id="blackHole">
-        {/* Z:1 BACK DISK - appears above black hole due to gravitational lensing */}
-        <div class="back-disk-container">
+        {/* Z:1 BACK DISK TOP - appears above black hole due to gravitational lensing */}
+        <div class="back-disk-container back-disk-top">
+          <div class="back-disk-texture"></div>
+        </div>
+
+        {/* Z:1 BACK DISK BOTTOM - appears below black hole due to gravitational lensing */}
+        <div class="back-disk-container back-disk-bottom">
           <div class="back-disk-texture"></div>
         </div>
 
         {/* Z:5 Back disk glow/bloom */}
-        <div class="back-disk-glow"></div>
+        <div class="back-disk-glow back-disk-glow-top"></div>
+        <div class="back-disk-glow back-disk-glow-bottom"></div>
 
         {/* Z:10 BLOOM LAYER: Horizontal Disk */}
         <div class="horizontal-halo-blur"></div>
@@ -120,117 +126,140 @@ function BlackHoleVisuals() {
         }
 
         /*** BACK DISK - The gravitationally lensed back portion ***/
+        /* Thin glowing arcs above and below the black hole */
 
-        /* Back disk appears ABOVE the black hole - light bent over the top */
-        /* This is the backside of the accretion disk visible due to gravitational lensing */
         .back-disk-container {
           position: absolute;
-          width: 380px;
-          height: 380px;
-          border-radius: 50%;
+          width: 550px;
+          height: 550px;
           z-index: 1;
           top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%) translateY(-15px);
-          overflow: hidden;
-
-          /* Ring shape with inner cutout - thinner arc */
+          pointer-events: none;
+          border-radius: 50%;
+          /* Warm glowing gradient */
           background: conic-gradient(
-              from 180deg,
-              #3D0E00 0%,
-              #6B1F00 8%,
-              #A84000 18%,
-              #E07020 30%,
-              #FFB070 42%,
-              #FFF5E8 50%,
-              #FFB070 58%,
-              #E07020 70%,
-              #A84000 82%,
-              #6B1F00 92%,
-              #3D0E00 100%
+              from 270deg,
+              #442211 0%,
+              #774422 15%,
+              #AA6633 32%,
+              #DD9966 45%,
+              #FFEEDD 50%,
+              #DD9966 55%,
+              #AA6633 68%,
+              #774422 85%,
+              #442211 100%
           );
+          filter: blur(12px) brightness(1.5);
+          opacity: 1;
+        }
 
-          /* Composite mask: ring shape + top arc with soft edges */
+        /* TOP back disk - arc above the black hole (LARGER) */
+        /* Using clip-path + single mask to avoid mask-composite edge artifacts */
+        .back-disk-top {
+          width: 650px;
+          height: 650px;
+          transform: translate(-50%, -50%) translateY(-5px);
+          /* Clip to top half only */
+          clip-path: ellipse(100% 55% at 50% 0%);
+          /* Single ring mask without composite */
+          -webkit-mask: radial-gradient(ellipse 50% 38% at 50% 50%,
+              transparent 48%,
+              rgba(0,0,0,0.1) 52%,
+              rgba(0,0,0,0.3) 56%,
+              rgba(0,0,0,0.6) 60%,
+              rgba(0,0,0,0.9) 64%,
+              black 68%,
+              rgba(0,0,0,0.9) 72%,
+              rgba(0,0,0,0.6) 76%,
+              rgba(0,0,0,0.3) 80%,
+              rgba(0,0,0,0.1) 84%,
+              transparent 88%
+          );
+          mask: radial-gradient(ellipse 50% 38% at 50% 50%,
+              transparent 48%,
+              rgba(0,0,0,0.1) 52%,
+              rgba(0,0,0,0.3) 56%,
+              rgba(0,0,0,0.6) 60%,
+              rgba(0,0,0,0.9) 64%,
+              black 68%,
+              rgba(0,0,0,0.9) 72%,
+              rgba(0,0,0,0.6) 76%,
+              rgba(0,0,0,0.3) 80%,
+              rgba(0,0,0,0.1) 84%,
+              transparent 88%
+          );
+        }
+
+        /* BOTTOM back disk - arc below the black hole (SMALLER) */
+        .back-disk-bottom {
+          width: 450px;
+          height: 450px;
+          transform: translate(-50%, -50%) translateY(5px);
+          /* Composite mask: ring shape + bottom-only fade */
           -webkit-mask:
-              radial-gradient(circle,
-                  transparent 88px,
-                  rgba(0,0,0,0.3) 92px,
-                  black 100px,
-                  black 135px,
-                  rgba(0,0,0,0.3) 145px,
-                  transparent 155px
+              radial-gradient(ellipse 50% 38% at 50% 50%,
+                  transparent 48%,
+                  rgba(0,0,0,0.1) 52%,
+                  rgba(0,0,0,0.3) 56%,
+                  rgba(0,0,0,0.6) 60%,
+                  rgba(0,0,0,0.9) 64%,
+                  black 68%,
+                  rgba(0,0,0,0.9) 72%,
+                  rgba(0,0,0,0.6) 76%,
+                  rgba(0,0,0,0.3) 80%,
+                  rgba(0,0,0,0.1) 84%,
+                  transparent 88%
               ),
-              linear-gradient(to bottom,
+              radial-gradient(ellipse 100% 50% at 50% 100%,
                   black 0%,
-                  black 32%,
-                  rgba(0,0,0,0.4) 40%,
-                  transparent 48%
+                  rgba(0,0,0,0.9) 45%,
+                  rgba(0,0,0,0.5) 65%,
+                  rgba(0,0,0,0.2) 80%,
+                  transparent 100%
               );
           -webkit-mask-composite: source-in;
           mask:
-              radial-gradient(circle,
-                  transparent 88px,
-                  rgba(0,0,0,0.3) 92px,
-                  black 100px,
-                  black 135px,
-                  rgba(0,0,0,0.3) 145px,
-                  transparent 155px
+              radial-gradient(ellipse 50% 38% at 50% 50%,
+                  transparent 48%,
+                  rgba(0,0,0,0.1) 52%,
+                  rgba(0,0,0,0.3) 56%,
+                  rgba(0,0,0,0.6) 60%,
+                  rgba(0,0,0,0.9) 64%,
+                  black 68%,
+                  rgba(0,0,0,0.9) 72%,
+                  rgba(0,0,0,0.6) 76%,
+                  rgba(0,0,0,0.3) 80%,
+                  rgba(0,0,0,0.1) 84%,
+                  transparent 88%
               ),
-              linear-gradient(to bottom,
+              radial-gradient(ellipse 100% 50% at 50% 100%,
                   black 0%,
-                  black 32%,
-                  rgba(0,0,0,0.4) 40%,
-                  transparent 48%
+                  rgba(0,0,0,0.9) 45%,
+                  rgba(0,0,0,0.5) 65%,
+                  rgba(0,0,0,0.2) 80%,
+                  transparent 100%
               );
           mask-composite: intersect;
-
-          filter: brightness(0.85) contrast(1.1);
         }
 
+        /* Inner brighter core of the arc - hidden to test outline */
         .back-disk-texture {
-          width: 500px;
-          height: 500px;
-          position: absolute;
-          background: conic-gradient(
-              from 0deg,
-              transparent 0%,
-              rgba(255, 220, 180, 0.3) 20%,
-              rgba(255, 255, 250, 0.4) 30%,
-              rgba(255, 220, 180, 0.3) 40%,
-              transparent 50%,
-              rgba(80, 40, 20, 0.3) 70%,
-              rgba(40, 20, 10, 0.3) 80%,
-              transparent 100%
-          );
-          animation: spin-disk 20s linear infinite reverse;
-          mix-blend-mode: soft-light;
+          display: none;
         }
 
-        /* Back disk glow */
+        /* Back disk glow - hidden */
         .back-disk-glow {
-          position: absolute;
-          width: 420px;
-          height: 150px;
-          z-index: 2;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -120px);
-          background: radial-gradient(ellipse 100% 100% at 50% 100%,
-              rgba(255, 100, 30, 0.4) 0%,
-              rgba(200, 60, 10, 0.2) 60%,
-              transparent 90%
-          );
-          filter: blur(20px);
-          pointer-events: none;
+          display: none;
         }
 
         /*** BLOOM LAYERS (Atmospheric Glow) ***/
 
-        /* Horizontal Disk Bloom */
+        /* Horizontal Disk Bloom - warm white glowing halo */
         .horizontal-halo-blur {
           position: absolute;
-          width: 1000px;
-          height: 800px;
+          width: 1100px;
+          height: 900px;
           border-radius: 50%;
           z-index: 10;
           transform: rotateX(80deg);
@@ -238,82 +267,54 @@ function BlackHoleVisuals() {
 
           background: conic-gradient(
               from 0deg,
-              #D4600A 0%,
-              #8B2500 15%,
-              #4A1000 25%,
-              #8B2500 35%,
-              #D4600A 50%,
-              #FF8C42 65%,
-              #FFD4A3 75%,
-              #FF8C42 85%,
-              #D4600A 100%
+              #CC6633 0%,
+              #994422 15%,
+              #553311 25%,
+              #994422 35%,
+              #DD7744 50%,
+              #EEAA77 65%,
+              #FFDDBB 75%,
+              #EEAA77 85%,
+              #CC6633 100%
           );
 
           -webkit-mask: radial-gradient(farthest-side,
-              transparent 28%,
-              black 35%,
-              black 50%,
-              transparent 75%
+              transparent 25%,
+              black 32%,
+              black 55%,
+              transparent 80%
           );
           mask: radial-gradient(farthest-side,
-              transparent 28%,
-              black 35%,
-              black 50%,
-              transparent 75%
+              transparent 25%,
+              black 32%,
+              black 55%,
+              transparent 80%
           );
 
-          filter: blur(40px) brightness(1.2);
-          opacity: 0.35;
+          filter: blur(50px) brightness(2.0);
+          opacity: 0.7;
         }
 
-        /* Central Glow around event horizon */
+        /* Central Glow around event horizon - removed */
         .central-halo-blur {
-          position: absolute;
-          width: 280px;
-          height: 280px;
-          border-radius: 50%;
-          z-index: 15;
-
-          background: radial-gradient(circle,
-              rgba(255, 150, 50, 0.9) 0%,
-              rgba(255, 120, 30, 0.6) 30%,
-              rgba(200, 80, 20, 0.3) 50%,
-              transparent 70%
-          );
-
-          filter: blur(15px) brightness(1.3);
-          opacity: 1;
+          display: none;
         }
 
         /*** PHOTON RING AND EVENT HORIZON ***/
 
-        /* Photon ring outer glow */
+        /* Photon ring outer glow - removed */
         .photon-ring-glow {
-          position: absolute;
-          width: 200px;
-          height: 200px;
-          border-radius: 50%;
-          z-index: 18;
-          background: radial-gradient(circle,
-              transparent 70%,
-              rgba(255, 200, 150, 0.8) 80%,
-              rgba(255, 150, 80, 0.6) 90%,
-              transparent 100%
-          );
-          filter: blur(3px);
+          display: none;
         }
 
-        /* The Photon Ring - sharp bright ring */
+        /* The Photon Ring - thin edge */
         .photon-ring {
           position: absolute;
           width: 175px;
           height: 175px;
           border-radius: 50%;
-          border: 2.5px solid rgba(255, 250, 240, 1);
-          box-shadow:
-              0 0 20px rgba(255, 200, 100, 1),
-              0 0 40px rgba(255, 150, 50, 0.8),
-              inset 0 0 15px rgba(255, 200, 150, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: none;
           z-index: 19;
         }
 
@@ -350,20 +351,20 @@ function BlackHoleVisuals() {
           justify-content: center;
           align-items: center;
 
-          /* Rich orange-red gradient with doppler effect */
+          /* Warm glowing gradient with doppler effect */
           background: conic-gradient(
               from 0deg,
-              #D4600A 0%,
-              #8B2500 10%,
-              #5C1500 20%,
-              #8B2500 30%,
-              #D4600A 45%,
-              #FF8C42 55%,
-              #FFD4A3 65%,
-              #FFFAF0 72%,
-              #FFD4A3 80%,
-              #FF8C42 88%,
-              #D4600A 100%
+              #BB5522 0%,
+              #884411 10%,
+              #553311 20%,
+              #884411 30%,
+              #CC7744 45%,
+              #DDAA77 55%,
+              #EECCAA 65%,
+              #FFFFEE 72%,
+              #EECCAA 80%,
+              #DDAA77 88%,
+              #BB5522 100%
           );
 
           /* Multiple rings effect */
@@ -392,7 +393,7 @@ function BlackHoleVisuals() {
               transparent 88%
           );
 
-          filter: url(#noise) contrast(1.1) brightness(1.2);
+          filter: url(#noise) contrast(1.1) brightness(1.6);
         }
 
         /* Spinning texture overlay */
@@ -493,17 +494,17 @@ function BlackHoleVisuals() {
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 14px;
-          height: 14px;
-          background: #F0A500;
+          width: 12px;
+          height: 12px;
+          background: rgba(255, 255, 255, 0.9);
           border-radius: 50%;
           cursor: pointer;
         }
 
         input[type="range"]::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          background: #F0A500;
+          width: 12px;
+          height: 12px;
+          background: rgba(255, 255, 255, 0.9);
           border-radius: 50%;
           cursor: pointer;
           border: none;

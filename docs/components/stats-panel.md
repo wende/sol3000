@@ -2,36 +2,59 @@
 
 ## Purpose
 
-Right-side glassmorphism panel displaying overall game statistics: turn counter, credits, systems controlled, and fleet size.
+Top-left glassmorphism panel displaying real-time game statistics: resources with production rates, systems controlled (dominion), and active research progress.
 
 ## File Location
 ```
-src/components/StatsPanel.jsx
+src/components/game/StatsPanel.jsx
 ```
 
 ## Responsibilities
 
-1. **Display Turn Counter** - Current turn number
-2. **Show Credits** - Player's available credits
-3. **System Count** - Owned systems / total systems
-4. **Fleet Size** - Total number of ships
+1. **Display Resources** - Ore, Energy, Credits with live production rates (+X/s)
+2. **Show Dominion** - Owned systems / total systems
+3. **Research Progress** - Current tech being researched with countdown timer
 
 ## Component Structure
 
 ```jsx
-export function StatsPanel() {
+export function StatsPanel(props) {
+  const { gameState } = props;
+
   return (
     <div class="stats-panel glass-panel">
-      <StatDisplay label="Turn" value={gameState.turn} large />
-      <Divider />
-      <StatDisplay label="Credits" value={formatCredits(gameState.credits)} large />
-      <Divider />
-      <StatDisplay
-        label="Systems"
-        value={`${ownedSystems()} / ${gameState.systems.length}`}
+      {/* Resource displays with production rates */}
+      <ResourceDisplay
+        label="ORE"
+        value={gameState.resources().ore}
+        rate={gameState.productionRates().ore}
       />
+      <ResourceDisplay
+        label="ENERGY"
+        value={gameState.resources().energy}
+        rate={gameState.productionRates().energy}
+      />
+      <ResourceDisplay
+        label="CREDITS"
+        value={gameState.resources().credits}
+        rate={gameState.productionRates().credits}
+      />
+
       <Divider />
-      <StatDisplay label="Fleet Size" value={gameState.ships.length} />
+
+      {/* Dominion (systems owned) */}
+      <div class="dominion-display">
+        DOMINION {ownedSystems()} / {totalSystems}
+      </div>
+
+      {/* Research progress (if active) */}
+      <Show when={gameState.tech().current}>
+        <div class="research-progress">
+          <span>RESEARCH: {techName}</span>
+          <ProgressBar progress={progress} />
+          <span>{formatTime(remaining)}</span>
+        </div>
+      </Show>
     </div>
   );
 }
@@ -44,9 +67,9 @@ export function StatsPanel() {
 .stats-panel {
   position: fixed;
   top: 20px;
-  right: 20px;
-  width: 200px;
-  animation: slideInRight 0.4s ease-out 1.5s both;
+  left: 20px;
+  width: 280px;
+  animation: slideInLeft 0.4s ease-out 0.5s both;
 }
 ```
 
@@ -125,27 +148,38 @@ function Divider() {
 
 ### Owned Systems
 ```javascript
-function ownedSystems() {
-  return gameState.systems.filter(s => s.owner === 'player').length;
-}
+const ownedSystems = createMemo(() =>
+  props.galaxyData()?.systems.filter(s => s.owner === 'Player').length ?? 0
+);
 ```
 
-### Format Credits
+### Format Resource Value
 ```javascript
-function formatCredits(credits) {
-  if (credits >= 1000) {
-    return `${(credits / 1000).toFixed(1)}K`;
+function formatValue(value) {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
   }
-  return credits.toString();
+  return Math.floor(value).toString();
 }
 ```
 
-### Credits Per Turn
+### Format Production Rate
 ```javascript
-function creditsPerTurn() {
-  return gameState.systems
-    .filter(s => s.owner === 'player')
-    .reduce((sum, s) => sum + (s.population / 100000), 0);
+function formatRate(rate) {
+  if (rate >= 0) {
+    return `+${rate.toFixed(1)}/s`;
+  }
+  return `${rate.toFixed(1)}/s`;
+}
+```
+
+### Format Time Remaining
+```javascript
+function formatTime(ms) {
+  const seconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 ```
 
@@ -227,50 +261,74 @@ createEffect(() => {
 ## Complete Code Example
 
 ```jsx
-// src/components/StatsPanel.jsx
-import { createMemo } from 'solid-js';
-import { gameState } from '../store/gameState';
-import './stats-panel.css';
+// src/components/game/StatsPanel.jsx
+import { createMemo, Show } from 'solid-js';
+import { TECH_TREE } from '../../utils/gameState';
 
-export function StatsPanel() {
+export function StatsPanel(props) {
+  const { gameState, galaxyData } = props;
+
   const ownedSystems = createMemo(() =>
-    gameState.systems.filter(s => s.owner === 'player').length
+    galaxyData()?.systems.filter(s => s.owner === 'Player').length ?? 0
   );
 
-  const formatCredits = (credits) => {
-    if (credits >= 1000) return `${(credits / 1000).toFixed(1)}K`;
-    return credits.toString();
+  const totalSystems = createMemo(() =>
+    galaxyData()?.systems.length ?? 0
+  );
+
+  const formatValue = (value) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return Math.floor(value).toString();
+  };
+
+  const formatRate = (rate) => `+${rate.toFixed(1)}/s`;
+
+  const formatTime = (ms) => {
+    const seconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
     <div class="stats-panel glass-panel">
-      <div class="stat-display large">
-        <div class="stat-display-label">Turn</div>
-        <div class="stat-display-value">{gameState.turn}</div>
+      {/* Resources with production rates */}
+      <div class="resource-row">
+        <span class="resource-label">ORE</span>
+        <span class="resource-value">{formatValue(gameState.resources().ore)}</span>
+        <span class="resource-rate">{formatRate(gameState.productionRates().ore)}</span>
+      </div>
+      <div class="resource-row">
+        <span class="resource-label">ENERGY</span>
+        <span class="resource-value">{formatValue(gameState.resources().energy)}</span>
+        <span class="resource-rate">{formatRate(gameState.productionRates().energy)}</span>
+      </div>
+      <div class="resource-row">
+        <span class="resource-label">CREDITS</span>
+        <span class="resource-value">{formatValue(gameState.resources().credits)}</span>
+        <span class="resource-rate">{formatRate(gameState.productionRates().credits)}</span>
       </div>
 
       <div class="stat-divider" />
 
-      <div class="stat-display large">
-        <div class="stat-display-label">Credits</div>
-        <div class="stat-display-value">{formatCredits(gameState.credits)}</div>
+      {/* Dominion */}
+      <div class="dominion-row">
+        <span>DOMINION</span>
+        <span>{ownedSystems()} / {totalSystems()}</span>
       </div>
 
-      <div class="stat-divider" />
-
-      <div class="stat-display">
-        <div class="stat-display-label">Systems</div>
-        <div class="stat-display-value">
-          {ownedSystems()} / {gameState.systems.length}
-        </div>
-      </div>
-
-      <div class="stat-divider" />
-
-      <div class="stat-display">
-        <div class="stat-display-label">Fleet Size</div>
-        <div class="stat-display-value">{gameState.ships.length}</div>
-      </div>
+      {/* Research progress */}
+      <Show when={gameState.tech().current}>
+        {(current) => (
+          <div class="research-row">
+            <span>RESEARCH: {TECH_TREE[current().id]?.name}</span>
+            <div class="progress-bar">
+              <div class="progress-fill" style={{ width: `${(1 - current().remainingTime / current().duration) * 100}%` }} />
+            </div>
+            <span>{formatTime(current().remainingTime)}</span>
+          </div>
+        )}
+      </Show>
     </div>
   );
 }

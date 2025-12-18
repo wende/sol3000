@@ -88,21 +88,8 @@ export const GravitationalLens = (props) => {
         color = texture2D(u_background, lensedUV);
       }
 
-      // Photon sphere brightening
-      vec2 delta = uv - center;
-      float dist = length(delta);
-      float photonSphereRadius = u_schwarzschildRadius * 1.5;
-      float photonRing = exp(-pow(dist - photonSphereRadius, 2.0) / 0.0008);
-
-      // Add golden glow near photon sphere
-      vec3 photonGlow = vec3(1.0, 0.65, 0.1) * photonRing * 0.5;
-
-      // Einstein ring brightening
-      float einsteinRadius = sqrt(4.0 * u_mass * u_schwarzschildRadius);
-      float einsteinRing = exp(-pow(dist - einsteinRadius, 2.0) / 0.003);
-      vec3 einsteinGlow = vec3(0.8, 0.9, 1.0) * einsteinRing * 0.3;
-
-      gl_FragColor = vec4(color.rgb + photonGlow + einsteinGlow, 1.0);
+      // Output color without any glow effects
+      gl_FragColor = vec4(color.rgb, 1.0);
     }
   `;
 
