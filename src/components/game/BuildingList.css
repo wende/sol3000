@@ -1,0 +1,228 @@
+.building-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  box-sizing: border-box;
+}
+
+.glass-panel-inset {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  padding: 16px;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.resource-bar {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 8px;
+}
+
+.resource-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.res-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: #888;
+  margin-bottom: 6px;
+  font-weight: 300;
+}
+
+.res-value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #eee;
+  text-shadow: 0 0 10px rgba(255,255,255,0.1);
+}
+
+.building-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.glass-panel-row {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-panel-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.glass-panel-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(2px);
+}
+
+.glass-panel-row:hover::before {
+  background: #ffffff;
+}
+
+.building-icon {
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  margin-right: 20px;
+}
+
+.icon-placeholder {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.building-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.building-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.building-name {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  font-weight: 500;
+}
+
+.building-level {
+  font-size: 0.7rem;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.building-desc {
+  font-size: 0.75rem;
+  color: #999;
+  line-height: 1.3;
+  max-width: 90%;
+}
+
+.building-cost {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cost-ok {
+  color: #aaa;
+}
+.cost-err {
+  color: #f87171; /* red-400 */
+}
+
+.building-action {
+  margin-left: 16px;
+}
+
+.glass-button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.glass-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.glass-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #777;
+}
+
+/* Building in progress state */
+.building-in-progress {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.building-in-progress::before {
+  background: #3b82f6;
+}
+
+/* Cost time display */
+.cost-time {
+  color: #6b7280;
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
+/* Production display */
+.building-production {
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+
+/* Resource bar with icons */
+.resource-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.resource-item .res-label {
+  margin-bottom: 0;
+}
+
+.resource-item .res-value {
+  font-variant-numeric: tabular-nums;
+}
