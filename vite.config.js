@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import solid from 'vite-plugin-solid'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
@@ -11,6 +12,14 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        blackhole: resolve(__dirname, 'blackhole.html'),
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
