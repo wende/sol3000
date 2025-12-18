@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@locator/babel-jsx": "^0.5.1",
+    "@treelocator/runtime": "^0.1.5",
     "jsdom": "^27.3.0",
     "vite": "^7.2.4",
     "vite-plugin-solid": "^2.11.10",
