@@ -239,6 +239,25 @@ export default function App() {
           animation: shipMove 2s ease-in-out infinite;
         }
 
+        /* Sidebar responsive widths */
+        .sidebar-overview { width: 400px; }
+        .sidebar-launch { width: 500px; }
+        .sidebar-buildings { width: 75vw; }
+
+        @media (max-width: 768px) {
+          .sidebar-overview,
+          .sidebar-launch,
+          .sidebar-buildings {
+            width: 100vw;
+          }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .sidebar-buildings { width: 85vw; }
+          .sidebar-launch { width: min(500px, 90vw); }
+          .sidebar-overview { width: min(400px, 90vw); }
+        }
+
       `}</style>
 
       {/* 1. Background Grid */}

@@ -76,9 +76,8 @@ export const Sidebar = (props) => {
       </Show>
       <GlassPanel
         id="sidebar-panel"
-        class={`fixed top-0 right-0 h-full z-50 transition-transform duration-500 ease-out transform ${isOpen() ? 'translate-x-0' : 'translate-x-full'}`}
+        class={`fixed top-0 right-0 h-full z-50 transition-transform duration-500 ease-out transform ${isOpen() ? 'translate-x-0' : 'translate-x-full'} ${view() === 'buildings' ? 'sidebar-buildings' : view() === 'launch' ? 'sidebar-launch' : 'sidebar-overview'}`}
         style={{
-          width: view() === 'buildings' ? '75vw' : view() === 'launch' ? '500px' : '400px',
           "transition-property": "transform, width",
           "will-change": "transform, width",
         }}
