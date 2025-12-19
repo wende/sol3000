@@ -1,3 +1,5 @@
+@import "tailwindcss" layer(utilities);
+
 * {
   margin: 0;
   padding: 0;
@@ -34,7 +36,7 @@ button {
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'JetBrains Mono', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
@@ -45,7 +47,7 @@ body {
   height: 100vh;
 }
 
-/* Tailwind-inspired utilities */
+/* Tailwind-inspired utilities - RESTORED to ensure exact visual match */
 .relative { position: relative; }
 .absolute { position: absolute; }
 .fixed { position: fixed; }
@@ -116,7 +118,31 @@ body {
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
 .border { border-width: 1px; }
-.border-b { border-bottom-width: 1px; }
+.border-b { border-bottom-width: 1px; border-style: solid; }
+
+/* Fix: Command bar buttons shouldn't show border circles */
+#command-bar button > div.rounded-full.border {
+  border-style: none;
+}
+
+/* Fix: Sidebar section dividers shouldn't be visible */
+#sidebar-panel .border-b {
+  border-style: none;
+}
+
+/* Fix: Sidebar border boxes shouldn't show borders */
+#sidebar-panel .border {
+  border-style: none;
+}
+
+/* Fix: Modal borders and dividers shouldn't be visible */
+.fixed.inset-0 .border-b {
+  border-style: none;
+}
+
+.fixed.inset-0 .border {
+  border-style: none;
+}
 .border-white\/10 { border-color: rgba(255, 255, 255, 0.1); }
 .border-white\/20 { border-color: rgba(255, 255, 255, 0.2); }
 
@@ -297,6 +323,25 @@ body {
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
 }
 .blur-sm { filter: blur(4px); }
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
 
 /* SVG utilities */
 svg text {

@@ -7,7 +7,7 @@ export default defineConfig({
     solid({
       babel: {
         plugins: [
-          ["@locator/babel-jsx/dist", { env: "development" }],
+          ["@treelocator/babel-jsx/dist", { env: "development" }],
         ],
       },
     }),
@@ -17,6 +17,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         blackhole: resolve(__dirname, 'blackhole.html'),
+        noTailwind: resolve(__dirname, 'index-no-tw.html'),
       },
     },
   },

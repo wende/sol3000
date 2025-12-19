@@ -19,7 +19,8 @@
     "react-dom": "^19.2.3"
   },
   "devDependencies": {
-    "@locator/babel-jsx": "^0.5.1",
+    "@treelocator/babel-jsx": "file:../locatorjs/packages/babel-jsx",
+    "@tailwindcss/postcss": "^4.1.18",
     "@treelocator/runtime": "^0.1.5",
     "autoprefixer": "^10.4.23",
     "jsdom": "^27.3.0",
