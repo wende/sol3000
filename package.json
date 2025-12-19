@@ -24,7 +24,7 @@
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@treelocator/babel-jsx": "file:../locatorjs/packages/babel-jsx",
-    "@treelocator/runtime": "^0.1.5",
+    "@treelocator/runtime": "file:/Users/wende/projects/locatorjs/packages/runtime",
     "autoprefixer": "^10.4.23",
     "jsdom": "^27.3.0",
     "postcss": "^8.5.6",
