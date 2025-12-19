@@ -41,7 +41,7 @@ The game emphasizes clarity and strategic decision-making over complexity, with 
 ### Initial State
 1. Player starts with 1 home system
 2. Other systems are unclaimed
-3. Starting resources: 100 Ore, 50 Energy, 200 Credits
+3. Starting resources: 100 Ore, 10 Energy capacity, 200 Credits
 4. Real-time game tick runs at 10 ticks/second
 
 ### Real-Time Game Loop
@@ -124,14 +124,14 @@ Defender Strength = Sum of defending ships + System defense bonus
 rate = buildingLevel × baseRate × resourceMultiplier × techBonus
 ```
 
-**Building Costs (scale at 1.15× per level):**
-- Ore Mine: 50 Ore, 10 Energy (builds in 30s)
-- Solar Plant: 30 Ore (builds in 20s)
-- Trade Hub: 80 Ore, 20 Energy (builds in 45s)
-- Shipyard: 200 Ore, 50 Energy, 100 Credits (builds in 120s)
+**Building Costs (scale at 1.15× per level, time scales at 1.5× per level):**
+- Ore Mine: 50 Ore (builds in 3s base)
+- Solar Plant: 30 Ore (builds in 2s base)
+- Trade Hub: 80 Ore (builds in 4.5s base)
+- Shipyard: 200 Ore, 100 Credits (builds in 12s base)
 
 **Ship Costs:**
-- Colony Ship: 500 Ore, 200 Energy, 300 Credits (builds in 180s, reduced by Shipyard level)
+- Colony Ship: 500 Ore, 300 Credits (builds in 18s, reduced by Shipyard level)
 
 ## AI Behavior (Phase 2)
 

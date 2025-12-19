@@ -1,5 +1,5 @@
 import { createSignal, createEffect, onCleanup, Show, For } from 'solid-js';
-import { X, Crosshair, Shield, Rocket } from 'lucide-solid';
+import { X, Crosshair, Shield, Rocket, Link } from 'lucide-solid';
 import { GlassPanel } from '../common/GlassPanel';
 import { BuildingList } from './BuildingList';
 import { SystemStatsGrid } from './SystemStatsGrid';
@@ -9,6 +9,7 @@ import { DestinationSelector } from './DestinationSelector';
 /**
  * @typedef {Object} SidebarProps
  * @property {Object|null} system - The selected system
+ * @property {Object|null} tether - The selected tether { id, source, target, distance }
  * @property {Function} onClose - Callback to close the sidebar
  * @property {Object} gameState - The game state object
  */
@@ -19,7 +20,7 @@ import { DestinationSelector } from './DestinationSelector';
  * @param {SidebarProps} props
  */
 export const Sidebar = (props) => {
-  const isOpen = () => !!props.system;
+  const isOpen = () => !!props.system || !!props.tether;
   const [view, setView] = createSignal('overview'); // 'overview' | 'buildings' | 'launch'
   const [now, setNow] = createSignal(Date.now());
 
@@ -27,9 +28,9 @@ export const Sidebar = (props) => {
   const timer = setInterval(() => setNow(Date.now()), 100);
   onCleanup(() => clearInterval(timer));
 
-  // Reset view when system changes or closes
+  // Reset view when system/tether changes or closes
   createEffect(() => {
-    if (!props.system) setView('overview');
+    if (!props.system && !props.tether) setView('overview');
   });
 
   // Get docked ships at this system
@@ -113,6 +114,17 @@ export const Sidebar = (props) => {
               </Show>
             </div>
           </Show>
+          <Show when={props.tether}>
+            <div class="absolute bottom-6 left-6">
+              <div class="flex items-center space-x-2 text-blue-300 mb-1">
+                <Link size={14} />
+                <span class="text-[10px] tracking-widest">FTL ROUTE</span>
+              </div>
+              <h2 class="text-2xl font-light text-white tracking-widest font-mono">
+                {props.tether.source.name} → {props.tether.target.name}
+              </h2>
+            </div>
+          </Show>
         </div>
 
         <Show when={props.system}>
@@ -124,6 +136,32 @@ export const Sidebar = (props) => {
                 population={props.system.population}
                 resources={props.system.resources}
               />
+
+              {/* Market */}
+              <Show when={props.system.market?.metals && (props.system.market.metals.supply > 0 || props.system.market.metals.demand > 0)}>
+                <div class="pb-6 border-b border-white/10">
+                  <span class="text-[10px] text-gray-500 tracking-widest block mb-3">METALS MARKET</span>
+                  <div class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-sm">
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 tracking-widest">ROLE</span>
+                      <span class="text-sm text-white">
+                        {props.system.market.metals.supply > 0 ? 'SUPPLY' : 'DEMAND'}
+                      </span>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-xs text-gray-400 tracking-widest block">
+                        {props.system.market.metals.supply > 0 ? 'SUPPLY' : 'DEMAND'}
+                      </span>
+                      <span class="text-lg text-white">
+                        {props.system.market.metals.supply > 0 ? props.system.market.metals.supply : props.system.market.metals.demand}
+                      </span>
+                    </div>
+                  </div>
+                  <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                    Supply exports Metals. Demand pays more when unmet and less when satisfied.
+                  </p>
+                </div>
+              </Show>
 
               {/* Ownership */}
               <div class="pb-6 border-b border-white/10">
@@ -221,6 +259,16 @@ export const Sidebar = (props) => {
                     This system is unclaimed. Send a Colony Ship to colonize it.
                   </p>
                 </div>
+                <div class="space-y-3 pt-4">
+                  <button
+                    id="sidebar-scan-btn"
+                    class="w-full bg-white/10 border border-white/30 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => props.gameState.scanSystem(props.system.id)}
+                    disabled={props.gameState.resources().credits < 50}
+                  >
+                    SCAN SYSTEM (50 CR)
+                  </button>
+                </div>
               </Show>
             </Show>
 
@@ -235,6 +283,82 @@ export const Sidebar = (props) => {
               />
             </Show>
 
+          </div>
+        </Show>
+
+        {/* Tether Info Display */}
+        <Show when={props.tether}>
+          <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
+            {/* Tether Stats */}
+            <div class="pb-6 border-b border-white/10">
+              <span class="text-[10px] text-gray-500 tracking-widest block mb-3">FTL ROUTE INFO</span>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 bg-white/5 rounded border border-white/10">
+                  <span class="text-[10px] text-gray-500 tracking-widest block mb-1">DISTANCE</span>
+                  <span class="text-xl font-light">{props.tether.distance} LY</span>
+                </div>
+                <div class="p-4 bg-white/5 rounded border border-white/10">
+                  <span class="text-[10px] text-gray-500 tracking-widest block mb-1">TRAVEL TIME</span>
+                  <span class="text-xl font-light">6s</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Connected Systems */}
+            <div class="pb-6 border-b border-white/10">
+              <span class="text-[10px] text-gray-500 tracking-widest block mb-3">CONNECTED SYSTEMS</span>
+              <div class="space-y-3">
+                <div class="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] text-gray-500 tracking-widest block mb-1">FROM</span>
+                    <span class="text-lg font-light">{props.tether.source.name}</span>
+                  </div>
+                  <Shield
+                    size={16}
+                    class={props.tether.source.owner === 'Player' ? 'text-white' : props.tether.source.owner === 'Enemy' ? 'text-red-400' : 'text-gray-400'}
+                  />
+                </div>
+                <div class="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] text-gray-500 tracking-widest block mb-1">TO</span>
+                    <span class="text-lg font-light">{props.tether.target.name}</span>
+                  </div>
+                  <Shield
+                    size={16}
+                    class={props.tether.target.owner === 'Player' ? 'text-white' : props.tether.target.owner === 'Enemy' ? 'text-red-400' : 'text-gray-400'}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Route Description */}
+            <div>
+              <span class="text-[10px] text-gray-500 tracking-widest block mb-3">DATA LOG</span>
+              <p class="text-sm text-gray-300 leading-relaxed">
+                FTL corridor connecting {props.tether.source.name} to {props.tether.target.name}.
+                Ships can traverse this route using hyperspace jump technology.
+              </p>
+            </div>
+
+            {/* Build FTL Action */}
+            <div class="space-y-3 pt-4">
+              <Show
+                when={!props.gameState.builtFTLs().has(props.tether.id)}
+                fallback={
+                  <div class="p-4 bg-green-500/10 border border-green-500/30 rounded">
+                    <p class="text-xs text-green-300 text-center">FTL ROUTE ESTABLISHED</p>
+                  </div>
+                }
+              >
+                <button
+                  class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => props.gameState.buildFTL(props.tether.id)}
+                  disabled={props.gameState.resources().credits < 20}
+                >
+                  BUILD FTL (20 CR)
+                </button>
+              </Show>
+            </div>
           </div>
         </Show>
       </GlassPanel>

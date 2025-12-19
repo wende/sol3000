@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateGalaxy, MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from './galaxy';
+import { generateGalaxy, CENTER_X, CENTER_Y } from './galaxy';
 
 describe('generateGalaxy', () => {
   describe('Bug #1: No Player ownership on generation', () => {
@@ -75,6 +75,7 @@ describe('generateGalaxy', () => {
         expect(system).toHaveProperty('population');
         expect(system).toHaveProperty('resources');
         expect(system).toHaveProperty('owner');
+        expect(system).toHaveProperty('market');
         expect(system).toHaveProperty('description');
       });
     });
@@ -84,6 +85,25 @@ describe('generateGalaxy', () => {
 
       systems.forEach(system => {
         expect(['Rich', 'Normal', 'Poor']).toContain(system.resources);
+      });
+    });
+
+    it('should have valid metals market shape when present', () => {
+      const { systems } = generateGalaxy();
+
+      systems.forEach(system => {
+        const metals = system.market?.metals;
+        if (!metals) return;
+
+        expect(metals).toHaveProperty('supply');
+        expect(metals).toHaveProperty('demand');
+        expect(typeof metals.supply).toBe('number');
+        expect(typeof metals.demand).toBe('number');
+        expect(metals.supply).toBeGreaterThanOrEqual(0);
+        expect(metals.demand).toBeGreaterThanOrEqual(0);
+
+        // For now generation produces either supply OR demand (not both).
+        expect((metals.supply > 0) !== (metals.demand > 0)).toBe(true);
       });
     });
   });

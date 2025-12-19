@@ -2,6 +2,8 @@ import { onMount, createEffect, Show, For, createMemo } from 'solid-js';
 import * as d3 from 'd3';
 import { MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from '../../utils/galaxy';
 import { FTLTethers } from './FTLTethers';
+import { FTLRoute } from './FTLRoute';
+import { StarSystem } from './StarSystem';
 
 /**
  * @typedef {Object} GalaxyMapProps
@@ -9,13 +11,17 @@ import { FTLTethers } from './FTLTethers';
  * @property {Array} data.systems - Array of star systems
  * @property {Array} data.routes - Array of routes
  * @property {Function} onSystemSelect - Callback when a system is selected
+ * @property {Function} onTetherSelect - Callback when a tether/route is selected
  * @property {number|null} selectedSystemId - ID of the currently selected system
+ * @property {string|null} selectedTetherId - ID of the currently selected tether
+ * @property {Set} builtFTLs - Set of tether IDs that have been upgraded to FTL
  * @property {number|null} homeSystemId - ID of the home system
  * @property {Array} ripples - Array of ripple effects
  * @property {number} zoomLevel - Current zoom level
  * @property {Function} setZoomLevel - Setter for zoom level
  * @property {Array} ships - Array of ships (docked and in transit)
  * @property {Object} visibleSystems - Fog of war visibility data { visibleIds, farthestSystem }
+ * @property {Set} newlyRevealedIds - Set of system IDs that just became visible (for fade-in)
  */
 
 /**
@@ -130,6 +136,13 @@ export const GalaxyMap = (props) => {
     if (isDoubleClick) {
       // Double-click: center and zoom on the system
       centerOnSystem(sys);
+      
+      // Transition to System View after zoom
+      if (props.onSystemDoubleSelect) {
+        setTimeout(() => {
+           props.onSystemDoubleSelect(sys.id);
+        }, 800);
+      }
     }
 
     // Always select the system
@@ -175,6 +188,16 @@ export const GalaxyMap = (props) => {
     const visibility = props.visibleSystems;
     if (!visibility?.visibleIds || visibility.visibleIds.size === 0) return true;
     return visibility.visibleIds.has(route.source.id) && visibility.visibleIds.has(route.target.id);
+  };
+
+  // Check if a system is newly revealed (for fade-in animation)
+  const isNewlyRevealed = (systemId) => {
+    return props.newlyRevealedIds?.has(systemId) || false;
+  };
+
+  // Check if a route is newly revealed (at least one endpoint is newly revealed)
+  const isRouteNewlyRevealed = (route) => {
+    return isNewlyRevealed(route.source.id) || isNewlyRevealed(route.target.id);
   };
 
   // Get tether routes from 2-hop systems to unseen 3-hop systems
@@ -284,19 +307,17 @@ export const GalaxyMap = (props) => {
         <Show when={props.zoomLevel >= 0.25}>
           <For each={visibleRoutesFiltered()}>
             {(route) => {
-              const visible = () => isRouteVisible(route);
-              const shouldFade = () => props.fogTransitioning && !visible();
+              const routeId = `${route.source.id}-${route.target.id}`;
               return (
-                <line
-                  x1={route.source.x}
-                  y1={route.source.y}
-                  x2={route.target.x}
-                  y2={route.target.y}
-                  class="ftl-line"
-                  style={{
-                    opacity: shouldFade() ? 0 : 1,
-                    transition: 'opacity 700ms ease-out'
-                  }}
+                <FTLRoute
+                  route={route}
+                  routeId={routeId}
+                  isVisible={isRouteVisible(route)}
+                  shouldFade={props.fogTransitioning && !isRouteVisible(route)}
+                  shouldFadeIn={isRouteNewlyRevealed(route)}
+                  isSelected={props.selectedTetherId === routeId}
+                  isBuilt={props.builtFTLs?.has(routeId)}
+                  onSelect={props.onTetherSelect}
                 />
               );
             }}
@@ -366,101 +387,17 @@ export const GalaxyMap = (props) => {
 
         {/* Star Systems */}
         <For each={visibleSystemsFiltered()}>
-          {(sys) => {
-            const isSelected = () => props.selectedSystemId === sys.id;
-            const isHome = () => props.homeSystemId === sys.id;
-            const isOwned = () => sys.owner === 'Player';
-            const visible = () => isSystemVisible(sys.id);
-            const shouldFade = () => props.fogTransitioning && !visible();
-            // LOD class based on zoom level - only apply optimizations when zoomed OUT
-            const lodClass = () => {
-              if (props.zoomLevel < 0.2) return 'lod-ultra-low';
-              if (props.zoomLevel < 0.4) return 'lod-low';
-              return ''; // No LOD class when zoomed in - keep original quality
-            };
-            return (
-              <g
-                id={`system-${sys.id}`}
-                transform={`translate(${sys.x}, ${sys.y})`}
-                onClick={(e) => handleSystemClick(e, sys)}
-                class="group cursor-pointer"
-                style={{
-                  opacity: shouldFade() ? 0 : 1,
-                  transition: 'opacity 700ms ease-out'
-                }}
-              >
-                {/* Invisible larger hit area for easier clicking */}
-                <circle
-                  r={sys.size + 20}
-                  fill="transparent"
-                  class="pointer-events-auto"
-                />
-
-                {/* Ownership indicator ring */}
-                <Show when={isOwned() && !isHome()}>
-                  <circle
-                    r={sys.size + 15}
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.3)"
-                    stroke-width={1}
-                    class="opacity-50"
-                  />
-                </Show>
-
-                {/* Home System Ring - Dotted circle for home system */}
-                <Show when={isHome()}>
-                  <circle
-                    r={sys.size + 20}
-                    fill="none"
-                    stroke="white"
-                    stroke-width={2}
-                    stroke-dasharray="8,4"
-                    class="opacity-70 home-ring"
-                  />
-                </Show>
-
-                {/* Selection Ring */}
-                <circle
-                  r={sys.size + 12}
-                  fill="none"
-                  stroke={isSelected() ? 'white' : 'transparent'}
-                  stroke-width={1.5}
-                  class="opacity-60"
-                />
-
-                {/* The Star */}
-                <circle
-                  id={`star-${sys.id}`}
-                  r={sys.size}
-                  fill={sys.color}
-                  class={`star ${lodClass()} ${isSelected() ? 'selected-glow' : ''}`}
-                  style={`animation-delay: -${(sys.id * 0.3) % 4}s;`}
-                />
-
-                {/* Hover Ring - shown on hover */}
-                <circle
-                  r={sys.size + 6}
-                  fill="none"
-                  stroke="white"
-                  stroke-width="1"
-                  class="opacity-0 group-hover:opacity-40 pointer-events-none"
-                />
-
-                {/* Hover Label - Only show when zoomed in */}
-                <Show when={props.zoomLevel >= 0.4}>
-                  <text
-                    y={-sys.size - 15}
-                    text-anchor="middle"
-                    fill="white"
-                    font-size="14"
-                    class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none tracking-widest font-mono font-bold drop-shadow-lg"
-                  >
-                    {sys.name}
-                  </text>
-                </Show>
-              </g>
-            );
-          }}
+          {(sys) => (
+            <StarSystem
+              system={sys}
+              isSelected={props.selectedSystemId === sys.id}
+              isHome={props.homeSystemId === sys.id}
+              shouldFade={props.fogTransitioning && !isSystemVisible(sys.id)}
+              shouldFadeIn={isNewlyRevealed(sys.id)}
+              zoomLevel={props.zoomLevel}
+              onClick={(e) => handleSystemClick(e, sys)}
+            />
+          )}
         </For>
       </g>
     </svg>

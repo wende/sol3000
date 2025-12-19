@@ -1,6 +1,7 @@
 import { onMount, onCleanup, createMemo, Show } from 'solid-js';
 import { createGameState } from './utils/gameState';
 import { GalaxyMap } from './components/game/GalaxyMap';
+import { SystemView } from './components/game/SystemView';
 import { Sidebar } from './components/game/Sidebar';
 import { StatsPanel } from './components/game/StatsPanel';
 import { CommandBar } from './components/game/CommandBar';
@@ -25,6 +26,7 @@ export default function App() {
   // Handle system selection and trigger ripple
   const handleSystemSelect = (id) => {
     gameState.setSelectedSystemId(id);
+    gameState.setSelectedTetherId(null); // Clear tether selection when selecting a system
 
     // Add new ripple using System ID instead of screen coords
     const rippleId = Date.now();
@@ -36,11 +38,22 @@ export default function App() {
     }, 1000);
   };
 
+  // Handle tether selection
+  const handleTetherSelect = (tetherId) => {
+    gameState.setSelectedTetherId(tetherId);
+    gameState.setSelectedSystemId(null); // Clear system selection when selecting a tether
+  };
+
   // Keyboard Shortcuts
   onMount(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Escape') {
-        gameState.setSelectedSystemId(null);
+        if (gameState.viewState() === 'system') {
+          gameState.exitSystemView();
+        } else {
+          gameState.setSelectedSystemId(null);
+          gameState.setSelectedTetherId(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -50,6 +63,35 @@ export default function App() {
   const selectedSystem = createMemo(() =>
     gameState.galaxyData().systems.find(s => s.id === gameState.selectedSystemId())
   );
+
+  const viewedSystem = createMemo(() => 
+    gameState.galaxyData().systems.find(s => s.id === gameState.viewSystemId())
+  );
+
+  // Get selected tether and its connected systems
+  const selectedTether = createMemo(() => {
+    const tetherId = gameState.selectedTetherId();
+    if (!tetherId) return null;
+
+    const [sourceId, targetId] = tetherId.split('-').map(Number);
+    const galaxy = gameState.galaxyData();
+    const source = galaxy.systems.find(s => s.id === sourceId);
+    const target = galaxy.systems.find(s => s.id === targetId);
+
+    if (!source || !target) return null;
+
+    // Calculate distance between systems
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    return {
+      id: tetherId,
+      source,
+      target,
+      distance: Math.round(distance)
+    };
+  });
 
   const playerSystemsCount = createMemo(() =>
     gameState.galaxyData().systems.filter(s => s.owner === 'Player').length
@@ -66,7 +108,6 @@ export default function App() {
 
         :root {
           --bg-black: #000000;
-          --grid-line: rgba(255, 255, 255, 0.04);
           --glass-bg: rgba(20, 20, 20, 0.6);
           --glass-border: rgba(255, 255, 255, 0.1);
           --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
@@ -85,15 +126,6 @@ export default function App() {
           cursor: pointer;
         }
 
-        /* Background Grid */
-        .grid-bg {
-          background-size: 60px 60px;
-          background-image:
-            linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-            linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-          animation: gridInit 2s ease-out forwards;
-        }
-
         /* Glassmorphism Panel */
         .panel-glass {
           background: rgba(0, 0, 0, 0.75);
@@ -104,11 +136,6 @@ export default function App() {
         }
 
         /* Animations */
-        @keyframes gridInit {
-          0% { opacity: 0; transform: scale(1.1); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -133,10 +160,6 @@ export default function App() {
         @keyframes starPulseSlow {
           0%, 100% { opacity: 0.5; }
           50% { opacity: 1; }
-        }
-
-        @keyframes ftlFlow {
-          to { stroke-dashoffset: -20; }
         }
 
         @keyframes ripple {
@@ -165,6 +188,17 @@ export default function App() {
         @keyframes shipMove {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-2px); }
+        }
+
+        /* Fog of war fade-in animation for newly revealed elements */
+        @keyframes fogFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+
+        .fog-fade-in {
+          opacity: 0;
+          animation: fogFadeIn 1200ms ease-out 100ms forwards;
         }
 
         /* Ripple Animation Class for SVG */
@@ -201,14 +235,6 @@ export default function App() {
         .lod-ultra-low.selected-glow,
         .lod-low.selected-glow {
           filter: none !important;
-        }
-
-        .ftl-line {
-          stroke: rgba(255, 255, 255, 0.3);
-          stroke-width: 1.5px;
-          stroke-dasharray: 4, 4;
-          animation: ftlFlow 60s linear infinite;
-          will-change: stroke-dashoffset;
         }
 
         /* Black Hole Animations */
@@ -263,31 +289,49 @@ export default function App() {
       {/* 1. Background Grid */}
       <BackgroundGrid />
 
-      {/* 2. Full Screen Map Container */}
-      <div
-        class="absolute inset-0 overflow-hidden transition-opacity duration-300"
-        style={{ opacity: gameState.isGameActive() ? 1 : 0 }}
-      >
-        <GalaxyMap
-          data={gameState.galaxyData()}
-          onSystemSelect={handleSystemSelect}
-          selectedSystemId={gameState.selectedSystemId()}
-          homeSystemId={gameState.homeSystemId()}
-          ripples={gameState.ripples()}
-          zoomLevel={gameState.zoomLevel()}
-          setZoomLevel={gameState.setZoomLevel}
-          ships={gameState.ships()}
-          visibleSystems={gameState.visibleSystems()}
-          fogTransitioning={gameState.fogTransitioning()}
-        />
-      </div>
+      {/* 2. Main View: Galaxy Map OR System View */}
+      <Show when={gameState.viewState() === 'system'} fallback={
+        <div
+          class="absolute inset-0 overflow-hidden transition-opacity duration-300"
+          style={{ opacity: gameState.isGameActive() ? 1 : 0 }}
+        >
+          <GalaxyMap
+            data={gameState.galaxyData()}
+            onSystemSelect={handleSystemSelect}
+            onSystemDoubleSelect={(id) => gameState.enterSystemView(id)}
+            onTetherSelect={handleTetherSelect}
+            selectedSystemId={gameState.selectedSystemId()}
+            selectedTetherId={gameState.selectedTetherId()}
+            builtFTLs={gameState.builtFTLs()}
+            homeSystemId={gameState.homeSystemId()}
+            ripples={gameState.ripples()}
+            zoomLevel={gameState.zoomLevel()}
+            setZoomLevel={gameState.setZoomLevel}
+            ships={gameState.ships()}
+            visibleSystems={gameState.visibleSystems()}
+            fogTransitioning={gameState.fogTransitioning()}
+            newlyRevealedIds={gameState.newlyRevealedIds()}
+          />
+        </div>
+      }>
+        <div class="absolute inset-0 overflow-hidden z-20 bg-black">
+          <SystemView 
+            system={viewedSystem()} 
+            onBack={() => gameState.exitSystemView()}
+          />
+        </div>
+      </Show>
 
       {/* 3. UI Overlays - only shown when game is active */}
-      <Show when={hasGameStarted()}>
-        {/* Sidebar now handles system selection */}
+      <Show when={hasGameStarted() && gameState.viewState() === 'galaxy'}>
+        {/* Sidebar now handles system and tether selection */}
         <Sidebar
           system={selectedSystem()}
-          onClose={() => gameState.setSelectedSystemId(null)}
+          tether={selectedTether()}
+          onClose={() => {
+            gameState.setSelectedSystemId(null);
+            gameState.setSelectedTetherId(null);
+          }}
           gameState={gameState}
         />
 

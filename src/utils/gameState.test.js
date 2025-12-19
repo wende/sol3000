@@ -286,11 +286,12 @@ describe('gameState', () => {
         gameState.setResources({ ore: 1000, credits: 1000 });
 
         // Queue two buildings
-        gameState.startConstruction(homeId, 'building', 'solarPlant'); // 20s build time
-        gameState.startConstruction(homeId, 'building', 'oreMine'); // 30s build time
+        gameState.startConstruction(homeId, 'building', 'solarPlant'); // 2s build time
+        gameState.startConstruction(homeId, 'building', 'oreMine'); // 3s build time
 
-        // Fast-forward past first building's build time
-        vi.advanceTimersByTime(21000);
+        // Fast-forward past first building's build time (2s), plus some time into second (1.5s)
+        // Total 3.5s. Solar (2s) done. Ore (3s) started at 2s, elapsed 1.5s -> NOT done.
+        vi.advanceTimersByTime(3500);
 
         const galaxy = gameState.galaxyData();
         const homeSystem = galaxy.systems.find(s => s.id === homeId);
@@ -299,7 +300,7 @@ describe('gameState', () => {
         expect(homeSystem.buildings.solarPlant.level).toBe(1);
 
         // Second building should still be in queue (or just started)
-        // oreMine should still be level 0 since it takes 30s
+        // oreMine should still be level 0 since it takes 3s (total 5s seq)
         expect(homeSystem.buildings.oreMine.level).toBe(0);
 
         // Queue should now only have oreMine
