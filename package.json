@@ -23,8 +23,8 @@
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.18",
-    "@treelocator/babel-jsx": "file:../locatorjs/packages/babel-jsx",
-    "@treelocator/runtime": "file:/Users/wende/projects/locatorjs/packages/runtime",
+    "@locator/babel-jsx": "^0.5.1",
+    "@treelocator/runtime": "^0.1.5",
     "autoprefixer": "^10.4.23",
     "jsdom": "^27.3.0",
     "postcss": "^8.5.6",
