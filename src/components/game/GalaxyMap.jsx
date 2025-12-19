@@ -1,4 +1,4 @@
-import { onMount, createEffect, Show, For, createMemo, onCleanup } from 'solid-js';
+import { onMount, createEffect, Show, For, createMemo, createSignal, onCleanup } from 'solid-js';
 import * as d3 from 'd3';
 import { MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from '../../utils/galaxy';
 import { FTLTethers } from './FTLTethers';
@@ -25,6 +25,8 @@ import { StarSystem } from './StarSystem';
  * @property {Set} newlyRevealedIds - Set of system IDs that just became visible (for fade-in)
  * @property {Object} tradeFlows - Trade flow data { systemSatisfaction, routeThroughput }
  * @property {Object|null} scanningSystem - Scanning state { systemId, startTime, duration }
+ * @property {'galaxy'|'system'} viewState - Current view mode to react to transitions
+ * @property {number|null} viewSystemId - ID of the system currently shown in System View
  */
 
 /**
@@ -36,20 +38,27 @@ export const GalaxyMap = (props) => {
   let svgRef;
   let gRef;
   let zoomBehavior;
-  let lastClickTime = 0;
-  let lastClickId = null;
   let hasZoomedToHome = false;
-  let activeTransition = null;
   let homeZoomTimeoutId = null;
   let lastZoomUpdate = 0;
   const ZOOM_UPDATE_INTERVAL = 50; // ms - debounce zoom level updates
+  const [transitioningId, setTransitioningId] = createSignal(null);
+  let lastViewState = 'galaxy';
+  let lastFocusedSystem = null;
+  const BASE_MANUAL_MIN_SCALE = 0.1; // Values lifted from main branch
+  const BASE_MANUAL_MAX_SCALE = 3.0;
+  const MANUAL_MIN_SCALE = BASE_MANUAL_MIN_SCALE;
+  const MANUAL_MAX_SCALE = BASE_MANUAL_MAX_SCALE * 1.5; // Allow players to zoom 1.5x further in
+  const SYSTEM_VIEW_SCALE = 10; // Keep cinematic zoom depth from original build
+  const RETURN_VIEW_SCALE = MANUAL_MAX_SCALE; // Pull back to manual max after exiting system view
+  const FULL_GALAXY_SCALE = 0.45;
 
   // Initialize Zoom
   onMount(() => {
     if (!svgRef || !gRef) return;
 
     zoomBehavior = d3.zoom()
-      .scaleExtent([0.1, 3.0])
+      .scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE])
       .translateExtent([[-1000, -1000], [MAP_WIDTH + 1000, MAP_HEIGHT + 1000]])
       .clickDistance(5) // Allow up to 5px movement and still register as click
       .on('zoom', (e) => {
@@ -81,8 +90,8 @@ export const GalaxyMap = (props) => {
     if (svgRef && zoomBehavior) {
       d3.select(svgRef).on('.zoom', null); // Remove all D3 zoom event handlers
     }
-    if (activeTransition) {
-      activeTransition.interrupt(); // Stop any active transitions
+    if (svgRef) {
+      d3.select(svgRef).interrupt(); // Stop any active transitions
     }
     if (homeZoomTimeoutId) {
       clearTimeout(homeZoomTimeoutId); // Clear zoom-to-home timeout
@@ -90,46 +99,55 @@ export const GalaxyMap = (props) => {
   });
 
   // Function to center and zoom on a system
-  const centerOnSystem = (sys, duration = 750) => {
+  const centerOnSystem = (sys, duration = 2000, targetScale = SYSTEM_VIEW_SCALE) => {
     if (!svgRef || !zoomBehavior) return;
 
-    // Interrupt any active transition
-    if (activeTransition) {
-      activeTransition.interrupt();
-    }
-
     const svg = d3.select(svgRef);
-    const targetScale = 8.0; // Zoom in aggressively for transition
+    svg.interrupt();
 
     // Calculate center of viewport
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
+    // Align with System View: Sidebar is 1/3 width, Star is at 240px + 48px padding
+    const targetX = (window.innerWidth / 3) + 288;
+    const targetY = window.innerHeight / 2;
 
-    // Create transform: translate to center, scale, then translate system to origin
+    // Create transform: translate to target center, scale, then translate system to origin
     const transform = d3.zoomIdentity
-      .translate(centerX, centerY)
+      .translate(targetX, targetY)
       .scale(targetScale)
       .translate(-sys.x, -sys.y);
 
-    activeTransition = svg.transition()
+    return svg.transition()
       .duration(duration)
+      .ease(d3.easeExpInOut) // Smooth acceleration/deceleration
       .call(zoomBehavior.transform, transform);
   };
 
   // Reset view to show full galaxy (zoomed out)
-  const resetToFullGalaxy = () => {
+  const resetToFullGalaxy = (targetScale = FULL_GALAXY_SCALE, duration = 500) => {
     if (!svgRef || !zoomBehavior) return;
 
+    setTransitioningId(null);
+
     const svg = d3.select(svgRef);
-    const initialScale = 0.45;
+    svg.interrupt();
+    const translateX = (window.innerWidth / 2) - (CENTER_X * targetScale);
+    const translateY = (window.innerHeight / 2) - (CENTER_Y * targetScale);
 
-    const translateX = (window.innerWidth / 2) - (CENTER_X * initialScale);
-    const translateY = (window.innerHeight / 2) - (CENTER_Y * initialScale);
-
-    svg.transition()
-      .duration(500)
-      .call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(initialScale));
+    return svg.transition()
+      .duration(duration)
+      .ease(d3.easeCubicInOut)
+      .call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(targetScale));
   };
+
+  // Track the system currently shown in System View so we can pan back to it on exit
+  createEffect(() => {
+    const viewId = props.viewSystemId;
+    if (!viewId) return;
+    const system = props.data.systems.find(s => s.id === viewId);
+    if (system) {
+      lastFocusedSystem = system;
+    }
+  });
 
   // Auto-zoom to home system when it's first selected
   createEffect(() => {
@@ -152,7 +170,15 @@ export const GalaxyMap = (props) => {
       if (homeSystem && svgRef && zoomBehavior) {
         // Small delay to ensure DOM is ready
         homeZoomTimeoutId = setTimeout(() => {
-          centerOnSystem(homeSystem, 1200);
+          // Use simpler zoom for initial home focus
+          const svg = d3.select(svgRef);
+          const transform = d3.zoomIdentity
+            .translate(window.innerWidth / 2, window.innerHeight / 2)
+            .scale(1.5)
+            .translate(-homeSystem.x, -homeSystem.y);
+          
+          svg.transition().duration(1200).call(zoomBehavior.transform, transform);
+          
           hasZoomedToHome = true;
           homeZoomTimeoutId = null;
         }, 100);
@@ -160,30 +186,69 @@ export const GalaxyMap = (props) => {
     }
   });
 
-  // Handle system click with double-click detection
-  const handleSystemClick = (e, sys) => {
-    e.stopPropagation();
+  // When leaving system view, animate back to the full galaxy framing
+  createEffect(() => {
+    const currentView = props.viewState || 'galaxy';
+    if (!svgRef || !zoomBehavior) {
+      lastViewState = currentView;
+      return;
+    }
 
-    const now = Date.now();
-    const isDoubleClick = (now - lastClickTime < 300) && (lastClickId === sys.id);
+    if (currentView === 'system') {
+      // Keep the current zoom transform valid while System View is active.
+      zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
+    }
 
-    if (isDoubleClick) {
-      // Double-click: center and zoom on the system
-      centerOnSystem(sys, 1200);
+    if (lastViewState === 'system' && currentView === 'galaxy') {
+      // Start the return animation from the full cinematic zoom-out.
+      zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
 
-      // Transition to System View after zoom
-      if (props.onSystemDoubleSelect) {
-        setTimeout(() => {
-           props.onSystemDoubleSelect(sys.id);
-        }, 1200);
+      const targetSystem = lastFocusedSystem || props.data.systems.find(s => s.id === props.viewSystemId);
+      const transition = targetSystem
+        ? centerOnSystem(targetSystem, 1500, RETURN_VIEW_SCALE)
+        : resetToFullGalaxy(RETURN_VIEW_SCALE, 1500);
+
+      if (transition) {
+        transition
+          .on('end.manualZoomLimits', () => {
+            zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+          })
+          .on('interrupt.manualZoomLimits', () => {
+            zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+          });
+      } else {
+        zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
       }
     }
 
-    // Always select the system
-    props.onSystemSelect(sys.id);
+    lastViewState = currentView;
+  });
 
-    lastClickTime = now;
-    lastClickId = sys.id;
+  // Handle system click with double-click detection
+  const handleSystemClick = (e, sys) => {
+    e.stopPropagation();
+    props.onSystemSelect(sys.id);
+  };
+
+  const handleSystemDoubleClick = (e, sys) => {
+    e.stopPropagation();
+
+    // Allow the cinematic zoom to exceed the manual zoom limit.
+    zoomBehavior?.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
+
+    setTransitioningId(sys.id);
+    lastFocusedSystem = sys;
+    centerOnSystem(sys);
+
+    if (props.onSystemDoubleSelect) {
+      setTimeout(() => {
+        props.onSystemDoubleSelect(sys.id);
+      }, 2000);
+
+      setTimeout(() => {
+        setTransitioningId(null);
+      }, 3000);
+    }
   };
 
   // Handle background click to deselect
@@ -388,6 +453,15 @@ export const GalaxyMap = (props) => {
             <feMergeNode in="SourceGraphic"/>
           </feMerge>
         </filter>
+
+        {/* Star Glow Filter (Copied from SystemView for transition) */}
+        <filter id="star-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
       <g ref={gRef} class="gpu-accelerated">
@@ -491,10 +565,12 @@ export const GalaxyMap = (props) => {
               system={sys}
               isSelected={props.selectedSystemId === sys.id}
               isHome={props.homeSystemId === sys.id}
+              isTransitioning={transitioningId() === sys.id}
               shouldFade={props.fogTransitioning && !isSystemVisible(sys.id)}
               shouldFadeIn={isNewlyRevealed(sys.id)}
               zoomLevel={props.zoomLevel}
               onClick={(e) => handleSystemClick(e, sys)}
+              onDoubleClick={(e) => handleSystemDoubleClick(e, sys)}
               satisfaction={props.tradeFlows?.systemSatisfaction?.get(sys.id)}
               scanningSystem={props.scanningSystem}
             />

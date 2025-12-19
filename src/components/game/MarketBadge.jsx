@@ -3,6 +3,7 @@
  * @property {'supply' | 'demand'} type - Whether this is a supply or demand badge
  * @property {number} y - Y position offset from star center
  * @property {Object} [satisfaction] - Trade flow satisfaction data { ratio, used/satisfied, total }
+ * @property {boolean} [isTransitioning] - Forces full opacity during the galaxy→system zoom
  */
 
 /**
@@ -32,7 +33,7 @@ export const MarketBadge = (props) => {
   };
 
   return (
-    <g class="opacity-80 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+    <g class={`transition-opacity duration-200 pointer-events-none ${props.isTransitioning ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`}>
       <rect
         x={-badgeWidth() / 2}
         y={props.y}

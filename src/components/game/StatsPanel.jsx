@@ -32,7 +32,7 @@ export const StatsPanel = (props) => {
   return (
     <GlassPanel
       id="stats-panel"
-      class="absolute top-6 left-6 w-[300px] p-6 slide-in-left pointer-events-auto z-40"
+      class="absolute top-6 left-6 w-[300px] p-6 slide-in-left z-40"
     >
       {/* Resources Section */}
       <div class="space-y-6 mb-6">

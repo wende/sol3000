@@ -67,6 +67,7 @@ export function getStarColor(spectralClass, systemId, size) {
  * @property {number} id - Star ID for unique animation offset and color derivation
  * @property {boolean} isSelected - Whether the star is selected (adds glow)
  * @property {string} lodClass - Level of detail class for performance
+ * @property {boolean} isTransitioning - Whether the system is mid zoom animation
  */
 
 /**
@@ -89,12 +90,24 @@ export const Star = (props) => {
   const color = () => getStarColor(props.spectralClass, props.id, props.size);
 
   return (
-    <circle
-      id={`star-${props.id}`}
-      r={props.size}
-      fill={color()}
-      class={`star ${props.lodClass || ''} ${props.isSelected ? 'selected-glow' : ''}`}
-      style={`animation-delay: -${(props.id * 0.3) % 4}s;`}
-    />
+    <g>
+      {/* Halo - only visible during transition to match SystemView */}
+      {props.isTransitioning && (
+        <circle
+          r={props.size * 1.4}
+          fill={color()}
+          opacity="0.1"
+          filter="url(#star-glow)"
+          style={`pointer-events: none;`}
+        />
+      )}
+      <circle
+        id={`star-${props.id}`}
+        r={props.size}
+        fill={color()}
+        class={`star ${props.isTransitioning ? '' : (props.lodClass || '')} ${props.isSelected ? 'selected-glow' : ''} ${props.isTransitioning ? 'transition-glow' : ''}`}
+        style={`animation-delay: -${(props.id * 0.3) % 4}s; --star-color: ${color()};`}
+      />
+    </g>
   );
 };

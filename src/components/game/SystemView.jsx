@@ -1,4 +1,3 @@
-import { createSignal } from 'solid-js';
 import { Button } from '../common/Button';
 import { GlassPanel } from '../common/GlassPanel';
 import { Star, getStarColor } from './Star';
@@ -21,7 +20,7 @@ export const SystemView = (props) => {
     <div class="w-full h-full bg-black flex overflow-hidden">
       
       {/* Left Sidebar: UI & Info */}
-      <div class="w-1/3 flex-shrink-0 flex flex-col border-r border-white/10 bg-black/40 backdrop-blur-md relative z-20">
+      <div class="w-1/3 flex-shrink-0 flex flex-col border-r border-white/10 bg-black/40 backdrop-blur-md relative z-20 slide-in-left">
         <div class="p-8 space-y-8 overflow-y-auto h-full custom-scrollbar">
           
           {/* Header */}

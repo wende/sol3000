@@ -21,13 +21,20 @@ import { TetherInfoPanel } from './TetherInfoPanel';
  * @param {SidebarProps} props
  */
 export const Sidebar = (props) => {
-  const isOpen = () => !!props.system || !!props.tether;
+  const isOpen = () => (!!props.system || !!props.tether) && props.gameState.viewState() === 'galaxy';
+  const [isVisible, setIsVisible] = createSignal(false);
   const [view, setView] = createSignal('overview'); // 'overview' | 'buildings' | 'launch'
   const [now, setNow] = createSignal(Date.now());
+  let closeTimer = null;
 
   // Timer for updating progress bars
   const timer = setInterval(() => setNow(Date.now()), 100);
   onCleanup(() => clearInterval(timer));
+  onCleanup(() => {
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+    }
+  });
 
   // Reset view when system/tether changes or closes
   createEffect(() => {
@@ -67,9 +74,25 @@ export const Sidebar = (props) => {
     }
   };
 
+  // Keep the sidebar mounted briefly to allow closing transitions
+  createEffect(() => {
+    if (isOpen()) {
+      if (closeTimer) {
+        clearTimeout(closeTimer);
+        closeTimer = null;
+      }
+      setIsVisible(true);
+    } else if (isVisible()) {
+      if (closeTimer) clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => {
+        setIsVisible(false);
+        closeTimer = null;
+      }, 500);
+    }
+  });
+
   return (
-    <>
-      {/* Overlay backdrop - shown during buildings/launch views */}
+    <Show when={isVisible()}>
       <Show when={isOpen() && (view() === 'buildings' || view() === 'launch')}>
         <div
           class="fixed inset-0 transition-opacity duration-300 ease-out opacity-100 pointer-events-auto"
@@ -78,61 +101,58 @@ export const Sidebar = (props) => {
         />
       </Show>
 
-      {/* Main Sidebar Panel */}
-      <GlassPanel
-        id="sidebar-panel"
-        class={`fixed top-0 right-0 h-full z-50 transition-transform duration-500 ease-out transform ${isOpen() ? 'translate-x-0' : 'translate-x-full'} ${view() === 'buildings' ? 'sidebar-buildings' : view() === 'launch' ? 'sidebar-launch' : 'sidebar-overview'}`}
-        style={{
-          "transition-property": "transform, width",
-          "will-change": "transform, width",
-        }}
+      <div
+        class={`fixed top-0 right-0 h-full z-50 transform transition-all duration-500 ease-out ${isOpen() ? 'translate-x-0 opacity-100 pointer-events-auto' : 'translate-x-10 opacity-0 pointer-events-none'}`}
+        style={{ "will-change": "transform, opacity" }}
       >
-        {/* Header - System/Tether name and navigation */}
-        <SidebarHeader
-          system={props.system}
-          tether={props.tether}
-          onClose={props.onClose}
-          onBack={() => setView('overview')}
-          isInOverview={view() === 'overview'}
-        />
+        <GlassPanel
+          id="sidebar-panel"
+          class={`h-full ${view() === 'buildings' ? 'sidebar-buildings' : view() === 'launch' ? 'sidebar-launch' : 'sidebar-overview'}`}
+          style={{
+            "will-change": "width, opacity",
+          }}
+        >
+          <SidebarHeader
+            system={props.system}
+            tether={props.tether}
+            onClose={props.onClose}
+            onBack={() => setView('overview')}
+            isInOverview={view() === 'overview'}
+          />
 
-        {/* System Content Area */}
-        <Show when={props.system}>
-          <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
-            {/* Overview View */}
-            <Show when={view() === 'overview'}>
-              <SystemOverviewPanel
-                system={props.system}
-                gameState={props.gameState}
-                now={now()}
-                tradeFlows={props.tradeFlows}
-                onManageBuildings={() => setView('buildings')}
-                onLaunchShip={() => setView('launch')}
-              />
-            </Show>
+          <Show when={props.system}>
+            <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
+              <Show when={view() === 'overview'}>
+                <SystemOverviewPanel
+                  system={props.system}
+                  gameState={props.gameState}
+                  now={now()}
+                  tradeFlows={props.tradeFlows}
+                  onManageBuildings={() => setView('buildings')}
+                  onLaunchShip={() => setView('launch')}
+                />
+              </Show>
 
-            {/* Buildings View */}
-            <Show when={view() === 'buildings'}>
-              <BuildingList system={props.system} gameState={props.gameState} />
-            </Show>
+              <Show when={view() === 'buildings'}>
+                <BuildingList system={props.system} gameState={props.gameState} />
+              </Show>
 
-            {/* Launch Destination View */}
-            <Show when={view() === 'launch'}>
-              <DestinationSelector
-                destinations={reachableSystems()}
-                onSelect={handleLaunchShip}
-              />
-            </Show>
-          </div>
-        </Show>
+              <Show when={view() === 'launch'}>
+                <DestinationSelector
+                  destinations={reachableSystems()}
+                  onSelect={handleLaunchShip}
+                />
+              </Show>
+            </div>
+          </Show>
 
-        {/* Tether Content Area */}
-        <Show when={props.tether}>
-          <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
-            <TetherInfoPanel tether={props.tether} gameState={props.gameState} />
-          </div>
-        </Show>
-      </GlassPanel>
-    </>
+          <Show when={props.tether}>
+            <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
+              <TetherInfoPanel tether={props.tether} gameState={props.gameState} />
+            </div>
+          </Show>
+        </GlassPanel>
+      </div>
+    </Show>
   );
 };

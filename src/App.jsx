@@ -259,6 +259,14 @@ export default function App() {
           will-change: transform, opacity;
         }
 
+        /* Star Transition Glow */
+        .transition-glow {
+          opacity: 1 !important;
+          animation: none !important;
+          filter: drop-shadow(0 0 60px var(--star-color)) drop-shadow(0 0 15px white) !important;
+          transition: filter 2s ease-in-out, opacity 1s ease-in-out;
+        }
+
         /* Galaxy map fade is now controlled by parent container */
 
         /* Progress bar animation */
@@ -295,12 +303,10 @@ export default function App() {
       {/* 1. Background Grid */}
       <BackgroundGrid />
 
-      {/* 2. Main View: Galaxy Map OR System View */}
-      <Show when={gameState.viewState() === 'system'} fallback={
-        <div
-          class="absolute inset-0 overflow-hidden transition-opacity duration-300"
-          style={{ opacity: gameState.isGameActive() ? 1 : 0 }}
-        >
+      {/* 2. Main View: Galaxy Map AND System View */}
+      <div class="absolute inset-0 overflow-hidden">
+        {/* Galaxy Map - Always visible, pushed to back when system view is active */}
+        <div class={`absolute inset-0 transition-opacity duration-1000 ${gameState.viewState() === 'system' ? 'opacity-0 pointer-events-none' : 'opacity-100 z-10'}`}>
           <GalaxyMap
             data={gameState.galaxyData()}
             onSystemSelect={handleSystemSelect}
@@ -321,20 +327,26 @@ export default function App() {
             tradeFlows={gameState.tradeFlows()}
             scanningSystem={gameState.scanningSystem()}
             ftlConstruction={gameState.ftlConstruction()}
+            viewState={gameState.viewState()}
+            viewSystemId={gameState.viewSystemId()}
           />
         </div>
-      }>
-        <div class="absolute inset-0 overflow-hidden z-20 bg-black">
-          <SystemView
-            system={viewedSystem()}
-            onBack={() => gameState.exitSystemView()}
-          />
+
+        {/* System View - Overlay with fade in */}
+        <div class={`absolute inset-0 z-20 transition-opacity duration-1000 ${gameState.viewState() === 'system' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          <Show when={gameState.viewState() === 'system'}>
+            <SystemView
+              system={viewedSystem()}
+              onBack={() => gameState.exitSystemView()}
+            />
+          </Show>
         </div>
-      </Show>
+      </div>
 
       {/* 3. UI Overlays - only shown when game is active */}
-      <Show when={hasGameStarted() && gameState.viewState() === 'galaxy'}>
+      <Show when={hasGameStarted()}>
         {/* Sidebar now handles system and tether selection */}
+        {/* We rely on Sidebar.jsx to check viewState for its own slide animation */}
         <Sidebar
           system={selectedSystem()}
           tether={selectedTether()}
@@ -346,17 +358,22 @@ export default function App() {
           tradeFlows={gameState.tradeFlows()}
         />
 
-        {/* Stats Moved to Left - Now shows real-time resources */}
-        <StatsPanel
-          resources={gameState.resources()}
-          productionRates={gameState.productionRates()}
-          energyState={gameState.energyState()}
-          systemsOwned={playerSystemsCount()}
-          maxSystems={gameState.galaxyData().systems.length}
-          tech={gameState.tech()}
-        />
+        {/* Stats Moved to Left - Slide out to left when not in galaxy view */}
+        <div class={`absolute top-6 left-6 z-40 transition-all duration-500 ${gameState.viewState() === 'galaxy' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
+          <StatsPanel
+            resources={gameState.resources()}
+            productionRates={gameState.productionRates()}
+            energyState={gameState.energyState()}
+            systemsOwned={playerSystemsCount()}
+            maxSystems={gameState.galaxyData().systems.length}
+            tech={gameState.tech()}
+          />
+        </div>
 
-        <CommandBar gameState={gameState} />
+        {/* Command Bar - Slide down when not in galaxy view */}
+        <div class={`absolute bottom-10 left-6 z-40 transition-all duration-500 ${gameState.viewState() === 'galaxy' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+          <CommandBar gameState={gameState} />
+        </div>
       </Show>
 
       {/* Start New Game Button - shown when no game is active */}

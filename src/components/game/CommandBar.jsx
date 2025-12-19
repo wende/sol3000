@@ -78,7 +78,7 @@ export const CommandBar = (props) => {
     <>
       <GlassPanel
         id="command-bar"
-        class="absolute bottom-10 left-6 w-auto h-[70px] flex items-center justify-center px-8 slide-in-bottom pointer-events-auto z-40"
+        class="absolute bottom-10 left-6 w-auto h-[70px] flex items-center justify-center px-8 slide-in-bottom z-40"
       >
         <div class="flex items-center space-x-8">
           <button

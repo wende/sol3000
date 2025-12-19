@@ -15,10 +15,12 @@ import { SystemProgressRing } from './SystemProgressRing';
  * @property {string} system.owner - System owner
  * @property {boolean} isSelected - Whether this system is selected
  * @property {boolean} isHome - Whether this is the home system
+ * @property {boolean} isTransitioning - Whether this system is currently being zoomed into
  * @property {boolean} shouldFade - Whether the system should fade out (fog of war transition)
  * @property {boolean} shouldFadeIn - Whether the system should fade in (newly revealed)
  * @property {number} zoomLevel - Current zoom level for LOD
  * @property {Function} onClick - Click handler
+ * @property {Function} onDoubleClick - Double-click handler
  * @property {Object} [satisfaction] - Trade flow satisfaction data { type, ratio, used/satisfied, total }
  * @property {Object|null} [scanningSystem] - Scanning state { systemId, startTime, duration }
  */
@@ -87,6 +89,7 @@ export const StarSystem = (props) => {
       id={`system-${props.system.id}`}
       transform={`translate(${props.system.x}, ${props.system.y})`}
       onClick={props.onClick}
+      onDblClick={props.onDoubleClick}
       class={`group cursor-pointer ${props.shouldFadeIn ? 'fog-fade-in' : ''}`}
       style={getOpacityStyle()}
     >
@@ -147,6 +150,7 @@ export const StarSystem = (props) => {
         spectralClass={props.system.spectralClass}
         isSelected={props.isSelected}
         lodClass={lodClass()}
+        isTransitioning={props.isTransitioning}
       />
 
       {/* Hover Ring - shown on hover */}
@@ -165,7 +169,8 @@ export const StarSystem = (props) => {
           text-anchor="middle"
           fill="white"
           font-size="14"
-          class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none tracking-widest font-mono font-bold drop-shadow-lg"
+          class={`transition-opacity duration-200 pointer-events-none tracking-widest font-mono font-bold drop-shadow-lg ${props.isTransitioning ? '' : 'opacity-0 group-hover:opacity-100'}`}
+          style={{ opacity: props.isTransitioning ? 1 : undefined }}
         >
           {props.system.name}
         </text>
@@ -177,6 +182,7 @@ export const StarSystem = (props) => {
           type={hasMetalsSupply() ? 'supply' : 'demand'}
           y={props.system.size + 10}
           satisfaction={props.satisfaction}
+          isTransitioning={props.isTransitioning}
         />
       </Show>
 
