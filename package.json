@@ -16,14 +16,14 @@
     "@vitejs/plugin-react": "^5.1.2",
     "d3": "^7.9.0",
     "lucide-react": "^0.562.0",
-    "lucide-solid": "^0.562.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "lucide-solid": "^0.562.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "@tailwindcss/postcss": "^4.1.18",
     "@locator/babel-jsx": "^0.5.1",
+    "@playwright/test": "^1.57.0",
+    "@solidjs/testing-library": "^0.8.10",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
     "@treelocator/runtime": "^0.1.5",
     "autoprefixer": "^10.4.23",
     "jsdom": "^27.3.0",

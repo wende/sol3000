@@ -35,7 +35,8 @@ npm run test:run
 - **D3.js** (^7.9.0): Pan/zoom and SVG-based galaxy visualization
 - **Vite** (^7.2.4): Build tool and dev server
 - **Vitest** (^4.0.16): Unit testing framework with jsdom environment
-- **Pure CSS**: All styling and animations (no CSS-in-JS)
+- **Tailwind CSS**: Utility-first CSS framework
+- **Testing Library**: `@solidjs/testing-library` for component testing
 
 ### Project Structure
 ```
@@ -83,12 +84,13 @@ State flows down via props; callbacks flow up for updates.
 - Ripple effects triggered by system selection, cleanup after 1s
 
 **Styling Philosophy**
-- **NO TAILWIND CSS** - This project uses pure CSS only. Do not use Tailwind utility classes.
+- **Tailwind CSS** - Used for utility classes and layout.
+- **Pure CSS** - Used for complex animations and specific glassmorphism effects where Tailwind is insufficient.
 - All animations in `<style>` block in App.jsx using CSS keyframes
 - Hardware-accelerated transforms (`will-change`, GPU-accelerated properties)
 - Glassmorphism via `backdrop-filter: blur(16px)` with rgba backgrounds
 - Black (#000000) background with white (#ffffff) text and UI elements
-- Use inline styles or CSS files for component styling
+- Use inline styles or CSS files for component styling when necessary
 
 **Component Patterns**
 - Use JSDoc type annotations for props (see GlassPanel.jsx, GalaxyMap.jsx examples)
@@ -133,6 +135,24 @@ it('should do something', () => {
     // ... test logic
     gameState.stopGameLoop();
     dispose();
+  });
+});
+```
+
+**Component Testing (New)**
+- Use `@solidjs/testing-library` for UI testing.
+- Use `render` to mount components and `screen` to query them.
+- Use `@testing-library/user-event` or `fireEvent` for interactions.
+
+```javascript
+import { render, screen, fireEvent } from '@solidjs/testing-library';
+import { describe, it, expect } from 'vitest';
+import MyComponent from './MyComponent';
+
+describe('MyComponent', () => {
+  it('renders correctly', () => {
+    render(() => <MyComponent />);
+    expect(screen.getByText('Hello')).toBeInTheDocument();
   });
 });
 ```
