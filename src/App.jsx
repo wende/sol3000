@@ -263,7 +263,7 @@ export default function App() {
 
         /* Progress bar animation */
         .progress-fill {
-          transition: width 0.1s linear;
+          transition: width 0.15s linear;
         }
 
         /* Ship icon */

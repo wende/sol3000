@@ -79,7 +79,7 @@ export const StatsPanel = (props) => {
         <div class="mb-6">
           <div class="text-[10px] text-gray-500 tracking-widest mb-2">RESEARCHING</div>
           <div class="flex items-center justify-between mb-1">
-            <span class="text-xs text-blue-300">{props.tech?.current?.id?.replace(/([A-Z])/g, ' $1').trim()}</span>
+            <span class="text-xs text-blue-300">{props.tech?.current?.id?.charAt(0).toUpperCase() + props.tech?.current?.id?.slice(1).replace(/([A-Z])/g, ' $1').trim()}</span>
             <span class="text-[10px] text-gray-500">{Math.floor(techProgress()?.remaining || 0)}s</span>
           </div>
           <ProgressBar progress={techProgress()?.progress || 0} color="#60a5fa" />

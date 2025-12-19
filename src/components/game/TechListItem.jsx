@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, createMemo } from 'solid-js';
 import { Lock, Check } from 'lucide-solid';
 import { ProgressBar } from '../common/ProgressBar';
 import { formatTime } from '../../utils/format';
@@ -22,6 +22,25 @@ import { TECH_TREE } from '../../utils/gameState';
  * @param {TechListItemProps} props
  */
 export const TechListItem = (props) => {
+  // Calculate progress from remainingTime (same as StatsPanel for smooth animation)
+  // remainingTime can be either a value or a memo function
+  const getRemainingTime = () => {
+    if (typeof props.remainingTime === 'function') {
+      return props.remainingTime();
+    }
+    return props.remainingTime;
+  };
+
+  const researchProgress = createMemo(() => {
+    if (!props.isResearching) return null;
+    const remaining = getRemainingTime();
+    if (!remaining) return null;
+    // remainingTime is in ms, tech.researchTime is in ms
+    const elapsed = props.tech.researchTime - remaining;
+    const progress = Math.min(100, (elapsed / props.tech.researchTime) * 100);
+    return { progress, remaining: remaining / 1000 };
+  });
+
   return (
     <div
       class={`p-4 rounded transition-all ${
@@ -63,13 +82,13 @@ export const TechListItem = (props) => {
           </Show>
         </div>
       </div>
-      <Show when={props.isResearching}>
+      <Show when={props.isResearching && researchProgress()}>
         <div class="mt-3">
           <div class="flex justify-between text-[10px] text-gray-400 mb-1">
             <span>Researching...</span>
-            <span>{formatTime(props.remainingTime)}</span>
+            <span>{formatTime(researchProgress().remaining * 1000)}</span>
           </div>
-          <ProgressBar progress={props.progress} />
+          <ProgressBar progress={researchProgress().progress} />
         </div>
       </Show>
     </div>

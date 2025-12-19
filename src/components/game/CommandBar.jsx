@@ -1,4 +1,4 @@
-import { createSignal, Show, For, onCleanup } from 'solid-js';
+import { createSignal, Show, For, onCleanup, createMemo } from 'solid-js';
 import { Database, Navigation, RotateCcw } from 'lucide-solid';
 import { GlassPanel } from '../common/GlassPanel';
 import { Modal } from '../common/Modal';
@@ -65,10 +65,13 @@ export const CommandBar = (props) => {
     return Math.min(100, (elapsed / tech.researchTime) * 100);
   };
 
+  // Create a memo for each tech that reads directly from the reactive tech signal
   const getResearchRemaining = (tech) => {
-    const current = props.gameState.tech().current;
-    if (!current) return tech.researchTime;
-    return Math.max(0, tech.researchTime - (now() - current.startTime));
+    return createMemo(() => {
+      const current = props.gameState.tech().current;
+      if (!current || current.id !== tech.id) return tech.researchTime;
+      return current.remainingTime || tech.researchTime;
+    });
   };
 
   return (

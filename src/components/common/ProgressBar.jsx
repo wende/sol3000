@@ -37,7 +37,7 @@ export const ProgressBar = (props) => {
               height: '100%',
               width: `${progress()}%`,
               background: color(),
-              transition: 'width 0.1s ease',
+              transition: 'width 0.15s linear',
               'box-shadow': props.glow ? '0 0 10px rgba(255,255,255,0.5)' : 'none'
             }}
           />
@@ -64,7 +64,7 @@ export const ProgressBar = (props) => {
             bottom: 0,
             width: `${progress()}%`,
             background: 'linear-gradient(to right, rgba(255,255,255,0.2), rgba(255,255,255,0.3))',
-            transition: 'width 0.1s ease',
+            transition: 'width 0.15s linear',
             'box-shadow': progress() > 0 ? 'inset 0 0 10px rgba(255,255,255,0.1), 0 0 15px rgba(255,255,255,0.1)' : 'none'
           }}
         />
@@ -78,7 +78,7 @@ export const ProgressBar = (props) => {
             background: 'rgba(255,255,255,0.8)',
             left: `calc(${progress()}% - 1px)`,
             opacity: progress() > 0 && progress() < 100 ? 1 : 0,
-            transition: 'left 0.1s ease, opacity 0.1s ease',
+            transition: 'left 0.15s linear, opacity 0.15s linear',
             'box-shadow': '0 0 8px rgba(255,255,255,0.8), 0 0 15px rgba(255,255,255,0.4)'
           }}
         />
