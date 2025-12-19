@@ -369,6 +369,61 @@ svg text {
   stroke-dasharray: 4, 4;
 }
 
+/* FTL Construction Animation */
+.ftl-line-construction-bg {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4, 4;
+}
+
+.ftl-line-construction-progress {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+}
+
+.ftl-construction-node {
+  fill: rgba(255, 255, 255, 0.9);
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 1px;
+  animation: constructionPulse 1s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+}
+
+@keyframes constructionPulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Animation for FTL construction - grows line from 0 to half length */
+@keyframes ftlBuildFromStart {
+  0% {
+    stroke-dasharray: 0 99999;
+  }
+  100% {
+    stroke-dasharray: var(--ftl-half-length) var(--ftl-full-length);
+  }
+}
+
+/* Animation for FTL progress bar in panel */
+@keyframes ftlProgressFill {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.ftl-progress-bar {
+  width: 0%;
+}
+
 /* Trade Tether (Metals supply ↔ demand) */
 .ftl-line-trade-base {
   stroke: rgba(255, 255, 255, 0.6);

@@ -749,7 +749,7 @@ describe('gameState', () => {
   });
 
   describe('FTL Tether Building (Integration)', () => {
-    it('should integrate buildFTL with game state management', () => {
+    it('should start FTL construction and deduct credits', () => {
       createRoot(dispose => {
         const gameState = createGameState();
 
@@ -769,11 +769,300 @@ describe('gameState', () => {
         gameState.setResources({ ore: 1000, credits: 1000 });
         gameState.startGameLoop();
 
-        // Build FTL and verify state updates
+        // Build FTL - should start construction, not instant build
         const result = gameState.buildFTL('route-1-2');
         expect(result).toBe(true);
+        expect(gameState.ftlConstruction()).not.toBeNull();
+        expect(gameState.ftlConstruction().tetherId).toBe('route-1-2');
+        expect(gameState.builtFTLs().has('route-1-2')).toBe(false); // Not built yet
+        expect(gameState.resources().credits).toBe(980); // 20 credits deducted immediately
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should complete FTL construction after duration', () => {
+      vi.useFakeTimers();
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Start FTL construction
+        gameState.buildFTL('route-1-2');
+        expect(gameState.ftlConstruction()).not.toBeNull();
+        const duration = gameState.ftlConstruction().duration;
+
+        // Advance time past construction duration
+        vi.advanceTimersByTime(duration + 200);
+
+        // Construction should be complete
+        expect(gameState.ftlConstruction()).toBeNull();
         expect(gameState.builtFTLs().has('route-1-2')).toBe(true);
-        expect(gameState.resources().credits).toBe(980); // 20 credits deducted
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+      vi.useRealTimers();
+    });
+
+    it('should prevent building another FTL during construction', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} },
+            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } },
+            { id: 'route-2-3', source: { id: 2, owner: 'Player' }, target: { id: 3, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Start first FTL construction
+        const result1 = gameState.buildFTL('route-1-2');
+        expect(result1).toBe(true);
+
+        // Try to start another - should fail
+        const result2 = gameState.buildFTL('route-2-3');
+        expect(result2).toBe(false);
+
+        // Only first construction should be active
+        expect(gameState.ftlConstruction().tetherId).toBe('route-1-2');
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should allow cancelling FTL construction', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Start FTL construction
+        gameState.buildFTL('route-1-2');
+        expect(gameState.ftlConstruction()).not.toBeNull();
+
+        // Cancel construction
+        gameState.cancelFTLConstruction();
+        expect(gameState.ftlConstruction()).toBeNull();
+        expect(gameState.builtFTLs().has('route-1-2')).toBe(false);
+
+        // Credits are NOT refunded
+        expect(gameState.resources().credits).toBe(980);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should allow starting new FTL construction after cancellation', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} },
+            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } },
+            { id: 'route-2-3', source: { id: 2, owner: 'Player' }, target: { id: 3, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Start first FTL construction
+        gameState.buildFTL('route-1-2');
+        expect(gameState.ftlConstruction().tetherId).toBe('route-1-2');
+
+        // Cancel it
+        gameState.cancelFTLConstruction();
+        expect(gameState.ftlConstruction()).toBeNull();
+
+        // Start a different FTL - should work
+        const result = gameState.buildFTL('route-2-3');
+        expect(result).toBe(true);
+        expect(gameState.ftlConstruction().tetherId).toBe('route-2-3');
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should allow starting new FTL after previous construction completes', () => {
+      vi.useFakeTimers();
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} },
+            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } },
+            { id: 'route-2-3', source: { id: 2, owner: 'Player' }, target: { id: 3, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Start first FTL construction
+        gameState.buildFTL('route-1-2');
+        const duration = gameState.ftlConstruction().duration;
+
+        // Complete construction
+        vi.advanceTimersByTime(duration + 200);
+        expect(gameState.builtFTLs().has('route-1-2')).toBe(true);
+        expect(gameState.ftlConstruction()).toBeNull();
+
+        // Start second FTL - should work
+        const result = gameState.buildFTL('route-2-3');
+        expect(result).toBe(true);
+        expect(gameState.ftlConstruction().tetherId).toBe('route-2-3');
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+      vi.useRealTimers();
+    });
+
+    it('should calculate build time based on distance', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        // Create systems with known distance: sqrt((700-500)^2 + (500-500)^2) = 200
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 700, y: 500, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Start FTL construction
+        gameState.buildFTL('route-1-2');
+
+        // Duration should be 5000 + distance * 10 = 5000 + 200 * 10 = 7000ms
+        const construction = gameState.ftlConstruction();
+        expect(construction.duration).toBe(7000);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should persist FTL construction state across save/load', () => {
+      // Manually set up a saved state with FTL construction
+      // Use a future startTime so construction doesn't complete during load
+      const savedData = {
+        galaxyData: {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
+          ]
+        },
+        homeSystemId: 1,
+        resources: { ore: 980, credits: 980 },
+        ships: { total: 0, deployed: 0 },
+        builtFTLs: [],
+        tech: { researched: [], currentResearch: null },
+        scanningSystem: null,
+        ftlConstruction: {
+          tetherId: 'route-1-2',
+          startTime: Date.now(),
+          duration: 60000 // Long duration so it doesn't complete
+        },
+        zoomLevel: 1,
+        viewState: 'galaxy',
+        viewSystemId: null,
+        lastSaved: Date.now()
+      };
+
+      // Use the mock's mockReturnValue to set up the saved data
+      localStorageMock.getItem.mockReturnValue(JSON.stringify(savedData));
+
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+
+        // Load the state (which starts game loop internally)
+        const loaded = gameState.loadState();
+        expect(loaded).toBe(true);
+
+        // FTL construction should be restored
+        const loadedConstruction = gameState.ftlConstruction();
+        expect(loadedConstruction).not.toBeNull();
+        expect(loadedConstruction.tetherId).toBe('route-1-2');
+        expect(loadedConstruction.duration).toBe(60000);
 
         gameState.stopGameLoop();
         dispose();

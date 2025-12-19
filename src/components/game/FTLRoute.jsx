@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, createMemo } from 'solid-js';
 
 /**
  * @typedef {Object} FTLRouteProps
@@ -10,6 +10,7 @@ import { Show } from 'solid-js';
  * @property {boolean} isSelected - Whether this route is currently selected
  * @property {boolean} isDimmed - Whether the route is dimmed (fog of war hint)
  * @property {Set} builtFTLs - Set of built FTL route IDs
+ * @property {Object|null} ftlConstruction - FTL construction state { tetherId, startTime, duration }
  * @property {boolean} connectsMetalsSupplyDemand - Whether route connects supply to demand
  * @property {boolean} tradeReverse - Whether flow direction should be reversed (demand→supply in route coords)
  * @property {Function} onSelect - Callback when route is selected
@@ -25,6 +26,27 @@ export const FTLRoute = (props) => {
   // Compute isBuilt reactively - this will update when builtFTLs changes
   const isBuilt = () => props.builtFTLs?.has(props.routeId);
   const isTrade = () => isBuilt() && props.connectsMetalsSupplyDemand;
+
+  // Check if this route is under construction
+  const isUnderConstruction = () => {
+    const construction = props.ftlConstruction;
+    if (!construction) return false;
+    return construction.tetherId === props.routeId;
+  };
+
+  // Get construction duration for CSS animation
+  const constructionDuration = () => {
+    const construction = props.ftlConstruction;
+    if (!construction || construction.tetherId !== props.routeId) return 0;
+    return construction.duration;
+  };
+
+  // Calculate the line length
+  const lineLength = createMemo(() => {
+    const dx = props.route.target.x - props.route.source.x;
+    const dy = props.route.target.y - props.route.source.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  });
 
   // Calculate midpoint for throughput label
   const midX = () => (props.route.source.x + props.route.target.x) / 2;
@@ -84,14 +106,86 @@ export const FTLRoute = (props) => {
       <Show
         when={isTrade()}
         fallback={
-          <line
-            x1={props.route.source.x}
-            y1={props.route.source.y}
-            x2={props.route.target.x}
-            y2={props.route.target.y}
-            class={`${lineClass()} ${props.shouldFadeIn ? 'fog-fade-in' : ''}`}
-            style={getOpacityStyle()}
-          />
+          <Show
+            when={isUnderConstruction()}
+            fallback={
+              <line
+                x1={props.route.source.x}
+                y1={props.route.source.y}
+                x2={props.route.target.x}
+                y2={props.route.target.y}
+                class={`${lineClass()} ${props.shouldFadeIn ? 'fog-fade-in' : ''}`}
+                style={getOpacityStyle()}
+              />
+            }
+          >
+            {/* FTL Construction Animation - fills from both ends using CSS animation */}
+            {(() => {
+              const length = lineLength();
+              const halfLength = length / 2;
+              const duration = constructionDuration();
+              const durationSec = duration / 1000;
+
+              return (
+                <>
+                  {/* Background dashed line (unbuilt portion) */}
+                  <line
+                    x1={props.route.source.x}
+                    y1={props.route.source.y}
+                    x2={props.route.target.x}
+                    y2={props.route.target.y}
+                    class="ftl-line-construction-bg"
+                    style={getOpacityStyle()}
+                  />
+                  {/* Progress line from source side - animates stroke-dasharray */}
+                  <line
+                    x1={props.route.source.x}
+                    y1={props.route.source.y}
+                    x2={props.route.target.x}
+                    y2={props.route.target.y}
+                    class="ftl-line-construction-progress"
+                    style={{
+                      ...getOpacityStyle(),
+                      'stroke-dasharray': `${halfLength} ${length}`,
+                      'stroke-dashoffset': '0',
+                      'animation': `ftlBuildFromStart ${durationSec}s linear forwards`,
+                      '--ftl-half-length': `${halfLength}`,
+                      '--ftl-full-length': `${length}`
+                    }}
+                  />
+                  {/* Progress line from target side - animates stroke-dasharray */}
+                  <line
+                    x1={props.route.target.x}
+                    y1={props.route.target.y}
+                    x2={props.route.source.x}
+                    y2={props.route.source.y}
+                    class="ftl-line-construction-progress"
+                    style={{
+                      ...getOpacityStyle(),
+                      'stroke-dasharray': `${halfLength} ${length}`,
+                      'stroke-dashoffset': '0',
+                      'animation': `ftlBuildFromStart ${durationSec}s linear forwards`,
+                      '--ftl-half-length': `${halfLength}`,
+                      '--ftl-full-length': `${length}`
+                    }}
+                  />
+                  {/* Construction indicator at endpoints */}
+                  <circle
+                    cx={props.route.source.x}
+                    cy={props.route.source.y}
+                    r={4}
+                    class="ftl-construction-node"
+                  />
+                  <circle
+                    cx={props.route.target.x}
+                    cy={props.route.target.y}
+                    r={4}
+                    class="ftl-construction-node"
+                  />
+                </>
+              );
+            })()}
+          </Show>
         }
       >
         {/* Base tether line (connected state) */}

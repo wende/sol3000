@@ -412,6 +412,7 @@ export const GalaxyMap = (props) => {
                   shouldFadeIn={isRouteNewlyRevealed(route)}
                   isSelected={props.selectedTetherId === routeId}
                   builtFTLs={props.builtFTLs}
+                  ftlConstruction={props.ftlConstruction}
                   connectsMetalsSupplyDemand={connectsMetalsSupplyDemand}
                   tradeReverse={tradeReverse}
                   onSelect={props.onTetherSelect}

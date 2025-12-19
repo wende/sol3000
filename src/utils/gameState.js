@@ -56,6 +56,10 @@ export function createGameState() {
   // Built FTL routes (tether IDs that have been upgraded)
   const [builtFTLs, setBuiltFTLs] = createSignal(new Set());
 
+  // FTL construction queue - tethers currently being built
+  // Each item: { tetherId, startTime, duration }
+  const [ftlConstruction, setFtlConstruction] = createSignal(null);
+
   // Tech state
   const [tech, setTech] = createSignal({
     researched: [],
@@ -408,6 +412,24 @@ export function createGameState() {
   };
 
   /**
+   * Update FTL construction progress and complete when done
+   */
+  const updateFTLConstruction = () => {
+    const construction = ftlConstruction();
+    if (!construction) return;
+
+    const now = Date.now();
+    const elapsed = now - construction.startTime;
+
+    if (elapsed >= construction.duration) {
+      // FTL construction complete - add to built FTLs
+      setBuiltFTLs(prev => new Set([...prev, construction.tetherId]));
+      setFtlConstruction(null);
+      console.log(`✅ FTL construction complete: ${construction.tetherId}`);
+    }
+  };
+
+  /**
    * Main game tick - runs every 100ms
    */
   const gameTick = () => {
@@ -438,6 +460,9 @@ export function createGameState() {
 
     // Update scan progress
     updateScanProgress();
+
+    // Update FTL construction
+    updateFTLConstruction();
 
     // Update tech research
     updateTechResearch();
@@ -542,8 +567,15 @@ export function createGameState() {
   /**
    * Build FTL on a tether (costs 20 credits)
    * Both systems connected by the tether must be scanned (Player-owned)
+   * Now queues construction instead of instant build
    */
   const buildFTL = (tetherId) => {
+    // Can't build if already constructing an FTL
+    if (ftlConstruction()) {
+      console.log('❌ Already constructing an FTL tether');
+      return false;
+    }
+
     const result = buildFTLLogic(
       tetherId,
       galaxyData(),
@@ -555,15 +587,41 @@ export function createGameState() {
       return false;
     }
 
-    // Update state with new values
+    // Deduct credits immediately
     setResources(r => ({
       ...r,
       credits: result.newCredits
     }));
 
-    setBuiltFTLs(result.newBuiltFTLs);
+    // Calculate distance-based build time
+    const cleanId = tetherId.replace(/^route-/, '');
+    const [sourceId, targetId] = cleanId.split('-').map(Number);
+    const galaxy = galaxyData();
+    const source = galaxy.systems.find(s => s.id === sourceId);
+    const target = galaxy.systems.find(s => s.id === targetId);
 
+    // Calculate distance and build time (5 seconds base + 10ms per unit distance)
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const FTL_BUILD_TIME = 5000 + Math.floor(distance * 10); // 5-10 seconds typically
+
+    // Start construction
+    setFtlConstruction({
+      tetherId,
+      startTime: Date.now(),
+      duration: FTL_BUILD_TIME
+    });
+
+    console.log(`🔨 Started FTL construction on ${tetherId}, duration: ${FTL_BUILD_TIME}ms`);
     return true;
+  };
+
+  /**
+   * Cancel FTL construction (no refund)
+   */
+  const cancelFTLConstruction = () => {
+    setFtlConstruction(null);
   };
 
   /**
@@ -803,6 +861,7 @@ export function createGameState() {
         setBuiltFTLs(new Set(migratedBuiltFTLs));
         setTech(state.tech || { researched: [], current: null });
         setScanningSystem(state.scanningSystem || null);
+        setFtlConstruction(state.ftlConstruction || null);
         setZoomLevel(state.zoomLevel || 0.45);
 
         // Restore view state
@@ -891,6 +950,7 @@ export function createGameState() {
         builtFTLs: [...builtFTLs()],
         tech: tech(),
         scanningSystem: scanningSystem(),
+        ftlConstruction: ftlConstruction(),
         zoomLevel: zoomLevel(),
         viewState: viewState(),
         viewSystemId: viewSystemId(),
@@ -997,6 +1057,7 @@ export function createGameState() {
             builtFTLs: [...builtFTLs()],
             tech: tech(),
             scanningSystem: null,
+            ftlConstruction: null,
             zoomLevel: zoomLevel(),
             viewState: 'galaxy',
             viewSystemId: null,
@@ -1066,6 +1127,8 @@ export function createGameState() {
     cancelScan,
     buildFTL,
     builtFTLs,
+    ftlConstruction,
+    cancelFTLConstruction,
     findPath,
     enterSystemView,
     exitSystemView,

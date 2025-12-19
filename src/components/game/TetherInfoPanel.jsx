@@ -23,9 +23,28 @@ export const TetherInfoPanel = (props) => {
     return props.gameState.resources().credits >= 20;
   });
 
+  // Check if this tether is under construction
+  const isUnderConstruction = createMemo(() => {
+    const construction = props.gameState.ftlConstruction();
+    if (!construction) return false;
+    return construction.tetherId === props.tether.id;
+  });
+
+  // Check if any FTL is being constructed (blocks building another)
+  const isConstructingAny = createMemo(() => {
+    return props.gameState.ftlConstruction() !== null;
+  });
+
+  // Get construction duration in seconds for CSS animation
+  const constructionDurationSec = () => {
+    const construction = props.gameState.ftlConstruction();
+    if (!construction || construction.tetherId !== props.tether.id) return 0;
+    return construction.duration / 1000;
+  };
+
   // Check if button should be disabled
   const isDisabled = createMemo(() => {
-    return !bothScanned() || !hasCredits();
+    return !bothScanned() || !hasCredits() || isConstructingAny();
   });
 
   // Handler for building FTL
@@ -34,6 +53,11 @@ export const TetherInfoPanel = (props) => {
     if (!result) {
       console.warn('Failed to build FTL:', props.tether.id);
     }
+  };
+
+  // Handler for cancelling FTL construction
+  const handleCancelConstruction = () => {
+    props.gameState.cancelFTLConstruction();
   };
 
   return (
@@ -102,26 +126,69 @@ export const TetherInfoPanel = (props) => {
             </div>
           }
         >
-          <button
-            class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleBuildFTL}
-            disabled={isDisabled()}
+          {/* Show construction progress if this tether is being built */}
+          <Show
+            when={isUnderConstruction()}
+            fallback={
+              <>
+                <button
+                  class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleBuildFTL}
+                  disabled={isDisabled()}
+                >
+                  BUILD FTL (20 CR)
+                </button>
+                <Show when={!bothScanned()}>
+                  <div class="p-3 bg-red-500/10 rounded">
+                    <p class="text-xs text-red-300 text-center">
+                      Both systems must be scanned before building FTL
+                    </p>
+                  </div>
+                </Show>
+                <Show when={bothScanned() && !hasCredits()}>
+                  <div class="p-3 bg-yellow-500/10 rounded">
+                    <p class="text-xs text-yellow-300 text-center">
+                      Insufficient credits
+                    </p>
+                  </div>
+                </Show>
+                <Show when={bothScanned() && hasCredits() && isConstructingAny()}>
+                  <div class="p-3 bg-blue-500/10 rounded">
+                    <p class="text-xs text-blue-300 text-center">
+                      Another FTL tether is under construction
+                    </p>
+                  </div>
+                </Show>
+              </>
+            }
           >
-            BUILD FTL (20 CR)
-          </button>
-          <Show when={!bothScanned()}>
-            <div class="p-3 bg-red-500/10 rounded">
-              <p class="text-xs text-red-300 text-center">
-                Both systems must be scanned before building FTL
-              </p>
+            {/* Construction Progress UI */}
+            <div class="p-4 bg-white/5 rounded space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 tracking-widest">CONSTRUCTING FTL</span>
+                <span class="text-xs text-white font-mono ftl-countdown" style={{ '--ftl-duration': `${constructionDurationSec()}s` }}>
+                  {Math.ceil(constructionDurationSec())}s
+                </span>
+              </div>
+              {/* Progress bar - uses CSS animation */}
+              <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-white rounded-full ftl-progress-bar"
+                  style={{
+                    'animation': `ftlProgressFill ${constructionDurationSec()}s linear forwards`
+                  }}
+                />
+              </div>
+              <div class="text-center">
+                <span class="text-xs text-gray-400">Building FTL tether...</span>
+              </div>
             </div>
-          </Show>
-          <Show when={bothScanned() && !hasCredits()}>
-            <div class="p-3 bg-yellow-500/10 rounded">
-              <p class="text-xs text-yellow-300 text-center">
-                Insufficient credits
-              </p>
-            </div>
+            <button
+              class="w-full bg-red-500/20 text-red-300 py-2 text-xs tracking-[0.2em] hover:bg-red-500/30 transition-colors border border-red-500/30"
+              onClick={handleCancelConstruction}
+            >
+              CANCEL CONSTRUCTION
+            </button>
           </Show>
         </Show>
       </div>

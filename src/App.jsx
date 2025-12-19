@@ -320,6 +320,7 @@ export default function App() {
             newlyRevealedIds={gameState.newlyRevealedIds()}
             tradeFlows={gameState.tradeFlows()}
             scanningSystem={gameState.scanningSystem()}
+            ftlConstruction={gameState.ftlConstruction()}
           />
         </div>
       }>

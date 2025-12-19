@@ -68,6 +68,14 @@ Energy is a **capacity**, not a spendable resource:
 - FTL upgrades are initiated from the Tether Info panel; the **Build FTL** button only activates when **both endpoints are Player-owned (scanned)**, you have the 20 credits available, and the route has not already been upgraded. Attempts that fail (unscanned endpoints, insufficient credits, duplicate builds) are rejected with no credit loss.
 - Built route IDs live in the persistent `builtFTLs` set so your network state survives reloads and prevents accidental double-builds.
 
+### FTL Construction Time
+- Building an FTL tether is **not instant**—construction takes **5 seconds + 10ms per unit of distance** between the two systems.
+- Only one FTL tether can be constructed at a time; attempting to build another while construction is in progress will fail.
+- During construction, an animated progress line fills the route from **both endpoints simultaneously**, meeting in the middle when complete.
+- The Tether Info panel displays a progress bar during construction showing time remaining.
+- Construction can be cancelled, but credits are **not refunded**.
+- Construction state persists through saves—reloading the game will resume construction where it left off.
+
 ### Metals Trade Network
 - Each Metals **Supply** node exports up to its rolled capacity while **Demand** nodes import until satisfied.
 - The flow solver splits supply fairly across all connected demands (respecting the upgraded-route graph) and records how much each system exports/imports.
