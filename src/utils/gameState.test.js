@@ -747,4 +747,37 @@ describe('gameState', () => {
       });
     });
   });
+
+  describe('FTL Tether Building (Integration)', () => {
+    it('should integrate buildFTL with game state management', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+
+        // Set up a galaxy with route between two Player-owned systems
+        const galaxy = {
+          systems: [
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+          ],
+          routes: [
+            { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
+          ]
+        };
+
+        gameState.setGalaxyData(galaxy);
+        gameState.setHomeSystemId(1);
+        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.startGameLoop();
+
+        // Build FTL and verify state updates
+        const result = gameState.buildFTL('route-1-2');
+        expect(result).toBe(true);
+        expect(gameState.builtFTLs().has('route-1-2')).toBe(true);
+        expect(gameState.resources().credits).toBe(980); // 20 credits deducted
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
 });

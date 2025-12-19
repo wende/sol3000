@@ -6,6 +6,7 @@ import { TECH_TREE, calculateTechBonuses } from './gameState/tech';
 import { calculateVisibleSystems } from './gameState/fog';
 import { migrateRouteIds, migrateSaveData } from './gameState/migrations';
 import { computeTradeFlows } from './gameState/trade';
+import { buildFTL as buildFTLLogic } from './ftl';
 import {
   STORAGE_KEY,
   TICK_INTERVAL,
@@ -540,33 +541,27 @@ export function createGameState() {
 
   /**
    * Build FTL on a tether (costs 20 credits)
+   * Both systems connected by the tether must be scanned (Player-owned)
    */
   const buildFTL = (tetherId) => {
-    const FTL_COST = 20;
-    const res = resources();
+    const result = buildFTLLogic(
+      tetherId,
+      galaxyData(),
+      resources(),
+      builtFTLs()
+    );
 
-    if (res.credits < FTL_COST) {
+    if (!result.success) {
       return false;
     }
 
-    // Check if already built
-    if (builtFTLs().has(tetherId)) {
-      return false;
-    }
-
-    // Deduct credits
+    // Update state with new values
     setResources(r => ({
       ...r,
-      credits: r.credits - FTL_COST
+      credits: result.newCredits
     }));
 
-    // Add to built FTLs
-    setBuiltFTLs(prev => {
-      const newSet = new Set([...prev, tetherId]);
-      console.log(`🔨 Built FTL on route ${tetherId}. Total built: ${newSet.size}`);
-      console.log(`   Built routes:`, [...newSet]);
-      return newSet;
-    });
+    setBuiltFTLs(result.newBuiltFTLs);
 
     return true;
   };

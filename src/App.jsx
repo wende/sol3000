@@ -319,6 +319,7 @@ export default function App() {
             fogTransitioning={gameState.fogTransitioning()}
             newlyRevealedIds={gameState.newlyRevealedIds()}
             tradeFlows={gameState.tradeFlows()}
+            scanningSystem={gameState.scanningSystem()}
           />
         </div>
       }>

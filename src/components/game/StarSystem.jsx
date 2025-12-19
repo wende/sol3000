@@ -1,6 +1,7 @@
-import { Show } from 'solid-js';
+import { Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
 import { Star } from './Star';
 import { MarketBadge } from './MarketBadge';
+import { ProgressBar } from '../common/ProgressBar';
 
 /**
  * @typedef {Object} StarSystemProps
@@ -19,6 +20,7 @@ import { MarketBadge } from './MarketBadge';
  * @property {number} zoomLevel - Current zoom level for LOD
  * @property {Function} onClick - Click handler
  * @property {Object} [satisfaction] - Trade flow satisfaction data { type, ratio, used/satisfied, total }
+ * @property {Object|null} [scanningSystem] - Scanning state { systemId, startTime, duration }
  */
 
 /**
@@ -47,6 +49,38 @@ export const StarSystem = (props) => {
       transition: 'opacity 700ms ease-out'
     };
   };
+
+  // Check if this system is being scanned
+  const isBeingScanned = () => {
+    return props.scanningSystem?.systemId === props.system.id;
+  };
+
+  // Calculate scan progress (0-100) - updates every 100ms while scanning
+  const [scanProgress, setScanProgress] = createSignal(0);
+
+  createEffect(() => {
+    const scan = props.scanningSystem;
+    if (!scan || scan.systemId !== props.system.id) {
+      setScanProgress(0);
+      return;
+    }
+
+    // Update progress immediately
+    const updateProgress = () => {
+      const now = Date.now();
+      const elapsed = now - scan.startTime;
+      const progress = Math.min(100, (elapsed / scan.duration) * 100);
+      setScanProgress(progress);
+    };
+
+    updateProgress();
+
+    // Set up interval to update progress
+    const intervalId = setInterval(updateProgress, 100);
+
+    // Cleanup interval when effect re-runs or component unmounts
+    onCleanup(() => clearInterval(intervalId));
+  });
 
   return (
     <g
@@ -139,6 +173,22 @@ export const StarSystem = (props) => {
           y={props.system.size + 10}
           satisfaction={props.satisfaction}
         />
+      </Show>
+
+      {/* Scan Progress Bar - Show when this system is being scanned, positioned below name */}
+      <Show when={isBeingScanned() && props.zoomLevel >= 0.4}>
+        <foreignObject
+          x={-25}
+          y={-props.system.size - 12}
+          width={50}
+          height={8}
+        >
+          <ProgressBar
+            progress={scanProgress()}
+            color="#ffffff"
+            height={4}
+          />
+        </foreignObject>
       </Show>
     </g>
   );

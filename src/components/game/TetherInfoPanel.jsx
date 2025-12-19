@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, createMemo } from 'solid-js';
 import { Shield } from 'lucide-solid';
 
 /**
@@ -13,6 +13,29 @@ import { Shield } from 'lucide-solid';
  * @param {TetherInfoPanelProps} props
  */
 export const TetherInfoPanel = (props) => {
+  // Check if both systems are scanned (Player-owned)
+  const bothScanned = createMemo(() => {
+    return props.tether.source.owner === 'Player' && props.tether.target.owner === 'Player';
+  });
+
+  // Check if player has enough credits
+  const hasCredits = createMemo(() => {
+    return props.gameState.resources().credits >= 20;
+  });
+
+  // Check if button should be disabled
+  const isDisabled = createMemo(() => {
+    return !bothScanned() || !hasCredits();
+  });
+
+  // Handler for building FTL
+  const handleBuildFTL = () => {
+    const result = props.gameState.buildFTL(props.tether.id);
+    if (!result) {
+      console.warn('Failed to build FTL:', props.tether.id);
+    }
+  };
+
   return (
     <>
       {/* FTL Route Stats */}
@@ -81,11 +104,25 @@ export const TetherInfoPanel = (props) => {
         >
           <button
             class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => props.gameState.buildFTL(props.tether.id)}
-            disabled={props.gameState.resources().credits < 20}
+            onClick={handleBuildFTL}
+            disabled={isDisabled()}
           >
             BUILD FTL (20 CR)
           </button>
+          <Show when={!bothScanned()}>
+            <div class="p-3 bg-red-500/10 rounded">
+              <p class="text-xs text-red-300 text-center">
+                Both systems must be scanned before building FTL
+              </p>
+            </div>
+          </Show>
+          <Show when={bothScanned() && !hasCredits()}>
+            <div class="p-3 bg-yellow-500/10 rounded">
+              <p class="text-xs text-yellow-300 text-center">
+                Insufficient credits
+              </p>
+            </div>
+          </Show>
         </Show>
       </div>
     </>

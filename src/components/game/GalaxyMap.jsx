@@ -24,6 +24,7 @@ import { StarSystem } from './StarSystem';
  * @property {Object} visibleSystems - Fog of war visibility data { visibleIds, farthestSystem }
  * @property {Set} newlyRevealedIds - Set of system IDs that just became visible (for fade-in)
  * @property {Object} tradeFlows - Trade flow data { systemSatisfaction, routeThroughput }
+ * @property {Object|null} scanningSystem - Scanning state { systemId, startTime, duration }
  */
 
 /**
@@ -494,6 +495,7 @@ export const GalaxyMap = (props) => {
               zoomLevel={props.zoomLevel}
               onClick={(e) => handleSystemClick(e, sys)}
               satisfaction={props.tradeFlows?.systemSatisfaction?.get(sys.id)}
+              scanningSystem={props.scanningSystem}
             />
           )}
         </For>
