@@ -1,8 +1,11 @@
 import { createSignal, createEffect, onCleanup, createMemo } from 'solid-js';
 import { generateGalaxy } from './galaxy';
+import { satisfyDemands } from './production';
+import { SCAN_COST, calculateHopsToSystem, calculateScanDuration } from '../operations/scan';
 
 const STORAGE_KEY = 'sol3000_game_state';
 const TICK_INTERVAL = 100; // 100ms = 10 ticks per second
+const TRADE_INCOME_PER_METAL = 0.01; // Credits per second per unit of metal traded
 
 /**
  * Building definitions with costs and production rates
@@ -328,6 +331,9 @@ export function createGameState() {
     current: null // { id, startTime, duration }
   });
 
+  // Scanning state - system being scanned
+  const [scanningSystem, setScanningSystem] = createSignal(null); // { systemId, startTime, duration }
+
   // Fog of War - Memoized visible systems calculation
   const visibleSystems = createMemo(() => {
     return calculateVisibleSystems(galaxyData(), homeSystemId());
@@ -370,10 +376,122 @@ export function createGameState() {
     previousVisibleIds = new Set(currentIds);
   });
 
+  // Trade flow calculation - connects supply systems to demand systems via built FTL routes
+  const tradeFlows = createMemo(() => {
+    const galaxy = galaxyData();
+    const built = builtFTLs();
+
+    if (!galaxy.systems.length || built.size === 0) {
+      return {
+        flows: [],
+        systemSatisfaction: new Map(), // systemId -> { supplied, consumed, total, ratio }
+        routeThroughput: new Map()     // routeId -> amount
+      };
+    }
+
+    // Collect producers (systems with supply) and consumers (systems with demand)
+    const producers = [];
+    const consumers = [];
+
+    for (const system of galaxy.systems) {
+      const market = system.market?.metals;
+      if (!market) continue;
+
+      if (market.supply > 0) {
+        producers.push({ id: system.id, supply: market.supply });
+      }
+      if (market.demand > 0) {
+        consumers.push({ id: system.id, demand: market.demand });
+      }
+    }
+
+    // Build links from built FTL routes that connect supply to demand
+    const links = [];
+    for (const route of galaxy.routes) {
+      const routeId = route.id;
+      if (!built.has(routeId)) continue;
+
+      const sourceMarket = route.source.market?.metals;
+      const targetMarket = route.target.market?.metals;
+
+      // Check if this route connects supply to demand (in either direction)
+      const sourceHasSupply = (sourceMarket?.supply || 0) > 0;
+      const sourceHasDemand = (sourceMarket?.demand || 0) > 0;
+      const targetHasSupply = (targetMarket?.supply || 0) > 0;
+      const targetHasDemand = (targetMarket?.demand || 0) > 0;
+
+      // Add link from supply to demand
+      if (sourceHasSupply && targetHasDemand) {
+        links.push({ producerId: route.source.id, consumerId: route.target.id, routeId });
+      }
+      if (targetHasSupply && sourceHasDemand) {
+        links.push({ producerId: route.target.id, consumerId: route.source.id, routeId });
+      }
+    }
+
+    if (producers.length === 0 || consumers.length === 0 || links.length === 0) {
+      return {
+        flows: [],
+        systemSatisfaction: new Map(),
+        routeThroughput: new Map()
+      };
+    }
+
+    // Calculate allocation
+    const result = satisfyDemands({ producers, consumers, links });
+
+    // Build satisfaction map for each system
+    const systemSatisfaction = new Map();
+
+    // For producers (supply systems): how much was sent vs total supply
+    for (const producer of producers) {
+      const sent = result.producerSent.get(producer.id) || 0;
+      systemSatisfaction.set(producer.id, {
+        type: 'supply',
+        used: sent,
+        total: producer.supply,
+        ratio: producer.supply > 0 ? sent / producer.supply : 0
+      });
+    }
+
+    // For consumers (demand systems): how much was received vs total demand
+    for (const consumer of consumers) {
+      const received = result.consumerReceived.get(consumer.id) || 0;
+      systemSatisfaction.set(consumer.id, {
+        type: 'demand',
+        satisfied: received,
+        total: consumer.demand,
+        ratio: consumer.demand > 0 ? received / consumer.demand : 0
+      });
+    }
+
+    // Build route throughput map
+    const routeThroughput = new Map();
+    for (const flow of result.flows) {
+      if (flow.amount > 0) {
+        // Find the link to get the routeId
+        const link = links.find(l =>
+          l.producerId === flow.producerId && l.consumerId === flow.consumerId
+        );
+        if (link) {
+          const existing = routeThroughput.get(link.routeId) || 0;
+          routeThroughput.set(link.routeId, existing + flow.amount);
+        }
+      }
+    }
+
+    return {
+      flows: result.flows,
+      systemSatisfaction,
+      routeThroughput
+    };
+  });
+
   // Game tick reference
   let tickInterval = null;
   let lastTickTime = Date.now();
   let saveTimeout = null;
+  let periodicSaveInterval = null;
   
   /**
    * Enter system view
@@ -463,6 +581,11 @@ export function createGameState() {
     // Apply tech bonuses and efficiency penalty
     oreRate *= techBonuses.ore * techBonuses.all * efficiencyMult;
     creditsRate *= techBonuses.credits * techBonuses.all * efficiencyMult;
+
+    // Add income from metal trade flows
+    const flows = tradeFlows();
+    const totalMetalTraded = flows.flows.reduce((sum, flow) => sum + flow.amount, 0);
+    creditsRate += totalMetalTraded * TRADE_INCOME_PER_METAL;
 
     return { ore: oreRate, credits: creditsRate };
   };
@@ -645,6 +768,23 @@ export function createGameState() {
   };
 
   /**
+   * Update scan progress and complete when done
+   */
+  const updateScanProgress = () => {
+    const scan = scanningSystem();
+    if (!scan) return;
+
+    const now = Date.now();
+    const elapsed = now - scan.startTime;
+
+    if (elapsed >= scan.duration) {
+      // Scan complete - colonize the system
+      colonizeSystem(scan.systemId);
+      setScanningSystem(null);
+    }
+  };
+
+  /**
    * Main game tick - runs every 100ms
    */
   const gameTick = () => {
@@ -673,6 +813,9 @@ export function createGameState() {
     // Update ship positions
     updateShipPositions(deltaMs);
 
+    // Update scan progress
+    updateScanProgress();
+
     // Update tech research
     updateTechResearch();
   };
@@ -685,6 +828,13 @@ export function createGameState() {
       lastTickTime = Date.now();
       tickInterval = setInterval(gameTick, TICK_INTERVAL);
     }
+
+    // Periodic save for resources (every 10 seconds)
+    if (!periodicSaveInterval) {
+      periodicSaveInterval = setInterval(() => {
+        performSave(); // Direct save, bypassing debounce
+      }, 10000);
+    }
   };
 
   /**
@@ -694,6 +844,10 @@ export function createGameState() {
     if (tickInterval) {
       clearInterval(tickInterval);
       tickInterval = null;
+    }
+    if (periodicSaveInterval) {
+      clearInterval(periodicSaveInterval);
+      periodicSaveInterval = null;
     }
   };
 
@@ -785,17 +939,26 @@ export function createGameState() {
     }));
 
     // Add to built FTLs
-    setBuiltFTLs(prev => new Set([...prev, tetherId]));
+    setBuiltFTLs(prev => {
+      const newSet = new Set([...prev, tetherId]);
+      console.log(`🔨 Built FTL on route ${tetherId}. Total built: ${newSet.size}`);
+      console.log(`   Built routes:`, [...newSet]);
+      return newSet;
+    });
 
     return true;
   };
 
   /**
-   * Scan a system (costs 50 credits, colonizes the system)
+   * Scan a system (costs credits, takes 30s + 5s per hop from home)
    */
   const scanSystem = (systemId) => {
-    const SCAN_COST = 50;
     const res = resources();
+
+    // Can't scan if already scanning
+    if (scanningSystem()) {
+      return false;
+    }
 
     if (res.credits < SCAN_COST) {
       return false;
@@ -807,16 +970,31 @@ export function createGameState() {
       return false;
     }
 
+    // Calculate scan duration based on hops from home
+    const hops = calculateHopsToSystem(galaxy, homeSystemId(), systemId, findPath);
+    const duration = calculateScanDuration(hops);
+
     // Deduct credits
     setResources(r => ({
       ...r,
       credits: r.credits - SCAN_COST
     }));
 
-    // Colonize the system (same as colony ship arrival)
-    colonizeSystem(systemId);
+    // Start scanning
+    setScanningSystem({
+      systemId,
+      startTime: Date.now(),
+      duration
+    });
 
     return true;
+  };
+
+  /**
+   * Cancel an ongoing scan (no refund)
+   */
+  const cancelScan = () => {
+    setScanningSystem(null);
   };
 
   /**
@@ -928,22 +1106,122 @@ export function createGameState() {
   };
 
   /**
+   * Migrate old route IDs (index-based) to new route IDs (system-ID-based)
+   */
+  const migrateRouteIds = (galaxyData, builtFTLs) => {
+    if (builtFTLs.length === 0) return { galaxyData, builtFTLs };
+
+    console.log('Checking if route ID migration is needed...');
+
+    // Build a map from old route IDs to new route IDs
+    const oldToNew = new Map();
+    const systems = galaxyData.systems;
+
+    // Create a map of system ID to array index (for old route IDs)
+    systems.forEach((sys, idx) => {
+      sys.__tempIdx = idx;
+    });
+
+    // Check each route to see if ID needs updating
+    let needsMigration = false;
+    const updatedRoutes = galaxyData.routes.map(route => {
+      const oldId = [route.source.__tempIdx, route.target.__tempIdx].sort((a, b) => a - b).join('-');
+      const newId = [route.source.id, route.target.id].sort((a, b) => a - b).join('-');
+
+      if (oldId !== newId) {
+        oldToNew.set(oldId, newId);
+        needsMigration = true;
+      }
+
+      if (route.id === oldId && oldId !== newId) {
+        return { ...route, id: newId };
+      }
+      return route;
+    });
+
+    // Clean up temp indices
+    systems.forEach(sys => delete sys.__tempIdx);
+
+    if (!needsMigration && oldToNew.size === 0) {
+      console.log('No route ID migration needed');
+      return { galaxyData, builtFTLs };
+    }
+
+    console.log(`Migrating ${oldToNew.size} route IDs from index-based to ID-based`);
+
+    // Migrate builtFTLs to use new route IDs
+    const migratedBuiltFTLs = builtFTLs.map(oldId => {
+      const newId = oldToNew.get(oldId);
+      if (newId) {
+        console.log(`  ${oldId} → ${newId}`);
+        return newId;
+      }
+      return oldId;
+    });
+
+    return {
+      galaxyData: { ...galaxyData, routes: updatedRoutes },
+      builtFTLs: migratedBuiltFTLs
+    };
+  };
+
+  /**
+   * Migrate old save data to add market data if missing
+   */
+  const migrateSaveData = (galaxyData) => {
+    // Check if systems are missing market data
+    const needsMigration = galaxyData.systems.some(s => s.market === undefined);
+
+    if (!needsMigration) {
+      return galaxyData;
+    }
+
+    console.log('Migrating save data: adding market data to systems');
+
+    // Add market data to systems that don't have it
+    const migratedSystems = galaxyData.systems.map(s => {
+      if (s.market !== undefined) return s;
+
+      // Import generateMetalsMarket logic inline
+      if (Math.random() > 0.55) return { ...s, market: null };
+
+      const bias =
+        s.resources === 'Rich' ? 0.12 :
+        s.resources === 'Poor' ? -0.12 :
+        0;
+
+      const isSupply = Math.random() < Math.min(1, Math.max(0, 0.5 + bias));
+      const randomInt = (min, max) => Math.floor(min + Math.random() * (max - min + 1));
+
+      if (isSupply) {
+        return { ...s, market: { metals: { supply: randomInt(200, 1200), demand: 0 } } };
+      }
+
+      return { ...s, market: { metals: { supply: 0, demand: randomInt(200, 1200) } } };
+    });
+
+    return { ...galaxyData, systems: migratedSystems };
+  };
+
+  /**
    * Load game state from localStorage
    */
   const loadState = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const state = JSON.parse(saved);
+        console.log('📂 Loading saved game state...');
 
-        // Validate saved data - detect corruption
-        const playerSystems = state.galaxyData?.systems?.filter(s => s.owner === 'Player') || [];
-        const hasHome = !!state.homeSystemId;
-        const homeExists = state.galaxyData?.systems?.some(s => s.id === state.homeSystemId);
-
-        // Corruption: Player owns systems but no valid home, or too many systems owned at start
-        if (playerSystems.length > 0 && (!hasHome || !homeExists)) {
-          console.warn('Corrupted save detected: Player systems without valid home. Starting fresh.');
+        let state;
+        try {
+          state = JSON.parse(saved);
+          console.log('✓ Save file parsed successfully');
+        } catch (parseError) {
+          const errorMsg = `Save file is corrupted (JSON parse error)`;
+          console.error('❌ SAVE LOAD FAILED - JSON PARSE ERROR');
+          console.error('Details:', parseError.message);
+          console.error('This usually means the save file was corrupted or truncated');
+          alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThe save file could not be read. Starting a new game.\n\nTechnical details: ${parseError.message}`);
           localStorage.removeItem(STORAGE_KEY);
           const newGalaxy = generateGalaxy();
           setGalaxyData(newGalaxy);
@@ -951,16 +1229,63 @@ export function createGameState() {
           return false;
         }
 
-        setGalaxyData(state.galaxyData || generateGalaxy());
+        // Validate saved data - detect corruption
+        console.log('🔍 Validating save data integrity...');
+        const playerSystems = state.galaxyData?.systems?.filter(s => s.owner === 'Player') || [];
+        const hasHome = !!state.homeSystemId;
+        const homeExists = state.galaxyData?.systems?.some(s => s.id === state.homeSystemId);
+
+        console.log(`   Player systems: ${playerSystems.length}`);
+        console.log(`   Home system ID: ${state.homeSystemId || 'none'}`);
+        console.log(`   Home exists in galaxy: ${homeExists}`);
+
+        // Corruption: Player owns systems but no valid home, or too many systems owned at start
+        if (playerSystems.length > 0 && (!hasHome || !homeExists)) {
+          const issues = [];
+          if (!hasHome) issues.push('No home system ID set');
+          if (hasHome && !homeExists) issues.push(`Home system ${state.homeSystemId} not found in galaxy`);
+
+          const errorMsg = `Save file is corrupted:\n- ${issues.join('\n- ')}\n- Player owns ${playerSystems.length} systems but missing valid home`;
+
+          console.error('❌ SAVE LOAD FAILED - CORRUPTION DETECTED');
+          console.error('Corruption details:');
+          issues.forEach(issue => console.error(`  - ${issue}`));
+          console.error(`  - Player owns ${playerSystems.length} systems:`, playerSystems.map(s => `${s.name} (${s.id})`));
+
+          alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThis typically happens if the save was interrupted. Starting a new game.`);
+
+          localStorage.removeItem(STORAGE_KEY);
+          const newGalaxy = generateGalaxy();
+          setGalaxyData(newGalaxy);
+          startGameLoop();
+          return false;
+        }
+
+        console.log('✓ Save data validation passed');
+
+        // Migrate old saves to add market data
+        console.log('🔄 Checking for save migrations...');
+        let migratedGalaxyData = migrateSaveData(state.galaxyData || generateGalaxy());
+
+        // Migrate route IDs from index-based to ID-based
+        const migrationResult = migrateRouteIds(migratedGalaxyData, state.builtFTLs || []);
+        migratedGalaxyData = migrationResult.galaxyData;
+        const migratedBuiltFTLs = migrationResult.builtFTLs;
+
+        console.log('✓ Migrations complete');
+        console.log('📥 Restoring game state...');
+
+        setGalaxyData(migratedGalaxyData);
         setHomeSystemId(state.homeSystemId || null);
         // Handle both old and new resource format
         const savedResources = state.resources || { ore: 100, credits: 200 };
         setResources({ ore: savedResources.ore || 100, credits: savedResources.credits || 200 });
         setShips(state.ships || []);
-        setBuiltFTLs(new Set(state.builtFTLs || []));
+        setBuiltFTLs(new Set(migratedBuiltFTLs));
         setTech(state.tech || { researched: [], current: null });
+        setScanningSystem(state.scanningSystem || null);
         setZoomLevel(state.zoomLevel || 0.45);
-        
+
         // Restore view state
         setViewState(state.viewState || 'galaxy');
         setViewSystemId(state.viewSystemId || null);
@@ -969,16 +1294,32 @@ export function createGameState() {
         if (state.homeSystemId) {
           setIsGameActive(true);
         }
+
+        console.log('✓ Game state restored successfully');
+        console.log(`   Resources: ${savedResources.ore} ore, ${savedResources.credits} credits`);
+        console.log(`   Ships: ${state.ships?.length || 0}`);
+        console.log(`   Built FTLs: ${migratedBuiltFTLs.length}`);
+        console.log(`   Tech researched: ${state.tech?.researched?.length || 0}`);
+
         // Energy state will be recalculated from buildings
         startGameLoop();
         return true;
       }
     } catch (error) {
-      console.error('Failed to load game state:', error);
+      const errorMsg = `Unexpected error loading save file`;
+      console.error('❌ SAVE LOAD FAILED - UNEXPECTED ERROR');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Stack trace:', error.stack);
+      console.error('This is a bug - please report it with the above details');
+
+      alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nAn unexpected error occurred. Starting a new game.\n\nTechnical details: ${error.message}\n\nPlease report this issue.`);
+
       localStorage.removeItem(STORAGE_KEY);
     }
 
     // If no saved state, generate new galaxy
+    console.log('📂 No saved game found, generating new galaxy');
     const newGalaxy = generateGalaxy();
     setGalaxyData(newGalaxy);
     startGameLoop();
@@ -986,44 +1327,73 @@ export function createGameState() {
   };
 
   /**
-   * Save game state to localStorage (debounced)
+   * Save game state to localStorage (debounced for meaningful state changes)
+   * Meaningful changes are tracked via reactive effect, resources saved periodically
    */
   const saveState = () => {
+    // Debounce saves by 500ms - only save after changes stop
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-      try {
-        const galaxy = galaxyData();
-        const home = homeSystemId();
+      saveTimeout = null;
+      performSave();
+    }, 500);
+  };
 
-        // Guard: Don't save if galaxy is empty (likely during hot reload initialization)
-        if (!galaxy.systems || galaxy.systems.length === 0) {
-          return;
-        }
+  /**
+   * Actually perform the save operation
+   */
+  const performSave = () => {
+    try {
+      const galaxy = galaxyData();
+      const home = homeSystemId();
 
-        // Guard: Don't save if we have Player systems but no homeSystemId
-        // This would create a corrupted save
-        const playerSystems = galaxy.systems.filter(s => s.owner === 'Player');
-        if (playerSystems.length > 0 && !home) {
-          return;
-        }
-
-        const state = {
-          galaxyData: galaxy,
-          homeSystemId: home,
-          resources: resources(),
-          ships: ships(),
-          builtFTLs: [...builtFTLs()],
-          tech: tech(),
-          zoomLevel: zoomLevel(),
-          viewState: viewState(),
-          viewSystemId: viewSystemId(),
-          lastSaved: Date.now()
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (error) {
-        console.error('Failed to save game state:', error);
+      // Guard: Don't save if galaxy is empty (likely during hot reload initialization)
+      if (!galaxy.systems || galaxy.systems.length === 0) {
+        console.warn('💾 Save skipped: Galaxy is empty (initialization in progress)');
+        return;
       }
-    }, 1000);
+
+      // Guard: Don't save if we have Player systems but no homeSystemId
+      // This would create a corrupted save
+      const playerSystems = galaxy.systems.filter(s => s.owner === 'Player');
+      if (playerSystems.length > 0 && !home) {
+        console.error('💾 Save skipped: CORRUPTION PREVENTION');
+        console.error(`   Player owns ${playerSystems.length} systems but homeSystemId is null`);
+        console.error(`   Player systems:`, playerSystems.map(s => `${s.name} (${s.id})`));
+        console.error('   This prevents saving a corrupted state');
+        return;
+      }
+
+      const state = {
+        galaxyData: galaxy,
+        homeSystemId: home,
+        resources: resources(),
+        ships: ships(),
+        builtFTLs: [...builtFTLs()],
+        tech: tech(),
+        scanningSystem: scanningSystem(),
+        zoomLevel: zoomLevel(),
+        viewState: viewState(),
+        viewSystemId: viewSystemId(),
+        lastSaved: Date.now()
+      };
+
+      const saveSize = JSON.stringify(state).length;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+      console.log(`💾 Game saved (${(saveSize / 1024).toFixed(1)}KB)`);
+    } catch (error) {
+      console.error('❌ SAVE FAILED');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      if (error.name === 'QuotaExceededError') {
+        console.error('LocalStorage quota exceeded! Save file is too large.');
+        alert('⚠️ Save Failed\n\nLocalStorage quota exceeded. Your save file is too large.\n\nThis is a critical issue. Please report it.');
+      } else {
+        console.error('Stack trace:', error.stack);
+        alert(`⚠️ Save Failed\n\nFailed to save game state.\n\nTechnical details: ${error.message}\n\nYour progress may be lost. Please report this issue.`);
+      }
+    }
   };
 
   /**
@@ -1107,6 +1477,7 @@ export function createGameState() {
             ships: ships(),
             builtFTLs: [...builtFTLs()],
             tech: tech(),
+            scanningSystem: null,
             zoomLevel: zoomLevel(),
             viewState: 'galaxy',
             viewSystemId: null,
@@ -1118,15 +1489,16 @@ export function createGameState() {
     }, 1000);
   };
 
-  // Auto-save when important values change
+  // Auto-save when meaningful state changes (debounced)
+  // Note: resources() is NOT tracked here because it changes every 100ms
+  // Resources are saved periodically (every 10 seconds) instead
   createEffect(() => {
-    galaxyData();
-    homeSystemId(); // Must track this to save home system changes
-    resources();
-    ships();
-    builtFTLs();
-    tech();
-    viewState(); // Save view state changes
+    galaxyData();      // System ownership, buildings, construction queues
+    homeSystemId();    // Home system selection
+    ships();           // Ship launches, arrivals, colonization
+    builtFTLs();       // FTL route construction
+    tech();            // Research progress
+    viewState();       // View state changes
     saveState();
   });
 
@@ -1161,6 +1533,7 @@ export function createGameState() {
     setTech,
     visibleSystems, // Fog of War - visible systems within 2 hops
     newlyRevealedIds, // Systems that just became visible (for fade-in animation)
+    tradeFlows, // Trade flow allocation - { systemSatisfaction, routeThroughput }
 
     // Actions
     loadState,
@@ -1170,6 +1543,8 @@ export function createGameState() {
     launchColonyShip,
     startResearch,
     scanSystem,
+    scanningSystem,
+    cancelScan,
     buildFTL,
     builtFTLs,
     findPath,

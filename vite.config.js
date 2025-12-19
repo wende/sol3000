@@ -17,12 +17,12 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         blackhole: resolve(__dirname, 'blackhole.html'),
-        noTailwind: resolve(__dirname, 'index-no-tw.html'),
       },
     },
   },
   test: {
     environment: 'jsdom',
     globals: true,
+    exclude: ['**/node_modules/**', '**/e2e/**'],
   },
 })

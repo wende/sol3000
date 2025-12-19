@@ -11,7 +11,7 @@
  */
 export const DockedShipCard = (props) => {
   return (
-    <div class="p-3 border border-white/10 rounded mb-2 flex items-center justify-between">
+    <div class="p-3 rounded mb-2 flex items-center justify-between">
       <div>
         <span class="text-sm">Colony Ship</span>
         <span class="text-xs text-gray-500 ml-2">@ {props.systemName}</span>

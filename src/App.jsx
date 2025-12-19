@@ -44,6 +44,12 @@ export default function App() {
     gameState.setSelectedSystemId(null); // Clear system selection when selecting a tether
   };
 
+  // Handle background click to deselect
+  const handleBackgroundClick = () => {
+    gameState.setSelectedSystemId(null);
+    gameState.setSelectedTetherId(null);
+  };
+
   // Keyboard Shortcuts
   onMount(() => {
     const handleKeyDown = (e) => {
@@ -300,6 +306,7 @@ export default function App() {
             onSystemSelect={handleSystemSelect}
             onSystemDoubleSelect={(id) => gameState.enterSystemView(id)}
             onTetherSelect={handleTetherSelect}
+            onBackgroundClick={handleBackgroundClick}
             selectedSystemId={gameState.selectedSystemId()}
             selectedTetherId={gameState.selectedTetherId()}
             builtFTLs={gameState.builtFTLs()}
@@ -311,12 +318,13 @@ export default function App() {
             visibleSystems={gameState.visibleSystems()}
             fogTransitioning={gameState.fogTransitioning()}
             newlyRevealedIds={gameState.newlyRevealedIds()}
+            tradeFlows={gameState.tradeFlows()}
           />
         </div>
       }>
         <div class="absolute inset-0 overflow-hidden z-20 bg-black">
-          <SystemView 
-            system={viewedSystem()} 
+          <SystemView
+            system={viewedSystem()}
             onBack={() => gameState.exitSystemView()}
           />
         </div>
@@ -333,6 +341,7 @@ export default function App() {
             gameState.setSelectedTetherId(null);
           }}
           gameState={gameState}
+          tradeFlows={gameState.tradeFlows()}
         />
 
         {/* Stats Moved to Left - Now shows real-time resources */}

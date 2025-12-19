@@ -1,7 +1,6 @@
 import { Show } from 'solid-js';
 import { GlassPanel } from '../common/GlassPanel';
 import { ProgressBar } from '../common/ProgressBar';
-import { Pickaxe, Coins } from 'lucide-solid';
 import { ResourceStat } from './ResourceStat';
 import { EnergyStat } from './EnergyStat';
 
@@ -38,7 +37,6 @@ export const StatsPanel = (props) => {
       {/* Resources Section */}
       <div class="space-y-6 mb-6">
         <ResourceStat
-          icon={<Pickaxe size={14} class="text-amber-400" />}
           label="ORE"
           value={props.resources.ore}
           rate={props.productionRates.ore}
@@ -51,7 +49,6 @@ export const StatsPanel = (props) => {
         />
 
         <ResourceStat
-          icon={<Coins size={14} class="text-emerald-400" />}
           label="CREDITS"
           value={props.resources.credits}
           rate={props.productionRates.credits}
@@ -60,7 +57,7 @@ export const StatsPanel = (props) => {
       </div>
 
       {/* Divider */}
-      <div class="border-t border-white/10 my-6" />
+      <div class="my-6" />
 
       {/* Dominion */}
       <div class="mb-6">

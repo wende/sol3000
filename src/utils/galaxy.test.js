@@ -71,7 +71,7 @@ describe('generateGalaxy', () => {
         expect(system).toHaveProperty('x');
         expect(system).toHaveProperty('y');
         expect(system).toHaveProperty('size');
-        expect(system).toHaveProperty('color');
+        expect(system).toHaveProperty('spectralClass');
         expect(system).toHaveProperty('population');
         expect(system).toHaveProperty('resources');
         expect(system).toHaveProperty('owner');

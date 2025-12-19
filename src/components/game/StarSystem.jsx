@@ -1,5 +1,6 @@
 import { Show } from 'solid-js';
 import { Star } from './Star';
+import { MarketBadge } from './MarketBadge';
 
 /**
  * @typedef {Object} StarSystemProps
@@ -9,7 +10,6 @@ import { Star } from './Star';
  * @property {number} system.x - X position
  * @property {number} system.y - Y position
  * @property {number} system.size - Star radius
- * @property {string} system.color - Star color (HSL with faint hue)
  * @property {string} system.spectralClass - Spectral class (O, B, A, F, G, K, M)
  * @property {string} system.owner - System owner
  * @property {boolean} isSelected - Whether this system is selected
@@ -18,6 +18,7 @@ import { Star } from './Star';
  * @property {boolean} shouldFadeIn - Whether the system should fade in (newly revealed)
  * @property {number} zoomLevel - Current zoom level for LOD
  * @property {Function} onClick - Click handler
+ * @property {Object} [satisfaction] - Trade flow satisfaction data { type, ratio, used/satisfied, total }
  */
 
 /**
@@ -100,11 +101,10 @@ export const StarSystem = (props) => {
         class="opacity-60"
       />
 
-      {/* The Star - visual component */}
+      {/* The Star - visual component (derives color from spectralClass) */}
       <Star
         id={props.system.id}
         size={props.system.size}
-        color={props.system.color}
         spectralClass={props.system.spectralClass}
         isSelected={props.isSelected}
         lodClass={lodClass()}
@@ -134,28 +134,11 @@ export const StarSystem = (props) => {
 
       {/* Market Marker - Only show when zoomed in */}
       <Show when={props.zoomLevel >= 0.4 && (hasMetalsSupply() || hasMetalsDemand())}>
-        <g class="opacity-70 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-          <rect
-            x={-18}
-            y={props.system.size + 10}
-            width={36}
-            height={16}
-            rx={2}
-            fill="rgba(255, 255, 255, 0.06)"
-            stroke="rgba(255, 255, 255, 0.18)"
-            stroke-width={1}
-          />
-          <text
-            x={0}
-            y={props.system.size + 22}
-            text-anchor="middle"
-            fill="white"
-            font-size="10"
-            class="tracking-widest font-mono"
-          >
-            {hasMetalsSupply() ? 'M+' : 'M-'}
-          </text>
-        </g>
+        <MarketBadge
+          type={hasMetalsSupply() ? 'supply' : 'demand'}
+          y={props.system.size + 10}
+          satisfaction={props.satisfaction}
+        />
       </Show>
     </g>
   );

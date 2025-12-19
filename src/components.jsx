@@ -1,6 +1,6 @@
 /* @refresh reload */
 import { render } from 'solid-js/web';
-import { createSignal, For } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import './index.css';
 
 // TreeLocator for component inspection
@@ -14,33 +14,30 @@ if (import.meta.env.DEV) {
 import { ResourceIconShowcase } from './components/game/ResourceIconShowcase';
 import { BuildingIconShowcase } from './components/game/BuildingIconShowcase';
 import { TetherFlowShowcase } from './components/game/TetherFlowShowcase';
+import { TetherFlowShowcase as TetherFlowShowcaseCanvas } from './components/game/TetherFlowShowcase.canvas-backup';
 import { GlassPanel } from './components/common/GlassPanel';
 import { ProgressBar } from './components/common/ProgressBar';
 import { Modal } from './components/common/Modal';
 import { ResourceIcon } from './components/common/ResourceIcon';
-import { Star } from './components/game/Star';
+import { Star, getStarColor } from './components/game/Star';
 import { StarSystem } from './components/game/StarSystem';
 import { FTLRoute } from './components/game/FTLRoute';
-import { FTLTethers } from './components/game/FTLTethers';
 import { StartGameButton } from './components/common/StartGameButton';
 import { VignetteOverlay } from './components/common/VignetteOverlay';
 import { BackgroundGrid } from './components/common/BackgroundGrid';
 import { Button } from './components/common/Button';
+import { DemoContainer } from './components/common/DemoContainer';
 
 // Import real data
 import { SPECTRAL_CLASSES } from './utils/galaxy';
 
-import { Database, Navigation, RotateCcw, Zap, Box } from 'lucide-solid';
+import { Database, Navigation, RotateCcw, Zap, Box, ChevronDown } from 'lucide-solid';
 
 /**
- * Generate a sample star color using real SPECTRAL_CLASSES data
+ * Generate a sample star color using the Star component's color generation
  */
-function generateSampleColor(spectralClass) {
-  const cls = SPECTRAL_CLASSES[spectralClass];
-  const hue = (cls.hue[0] + cls.hue[1]) / 2;
-  const saturation = (cls.saturation[0] + cls.saturation[1]) / 2;
-  const lightness = (cls.lightness[0] + cls.lightness[1]) / 2;
-  return `hsl(${Math.floor(hue)}, ${Math.floor(saturation)}%, ${Math.floor(lightness)}%)`;
+function generateSampleColor(spectralClass, id) {
+  return getStarColor(spectralClass, id);
 }
 
 /**
@@ -55,7 +52,7 @@ function createSampleSystem(id, spectralClass, x, y) {
     x,
     y,
     size: Math.round(size),
-    color: generateSampleColor(spectralClass),
+    color: generateSampleColor(spectralClass, id),
     spectralClass,
     planetCount: cls.planetRange[0],
     eccentricity: cls.eccentricity,
@@ -76,6 +73,21 @@ function ComponentsApp() {
   const [progress, setProgress] = createSignal(65);
   const [selectedSystemId, setSelectedSystemId] = createSignal(null);
   const [selectedRouteId, setSelectedRouteId] = createSignal(null);
+  const [collapsedSections, setCollapsedSections] = createSignal(new Set());
+
+  const toggleSection = (sectionId) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
+
+  const isCollapsed = (sectionId) => collapsedSections().has(sectionId);
 
   // Create sample systems for each spectral class
   const sampleSystems = Object.keys(SPECTRAL_CLASSES).map((cls, i) =>
@@ -108,10 +120,13 @@ function ComponentsApp() {
     { source: { x: 500, y: 100 }, target: { x: 590, y: 130 } },
   ];
 
+  // Set of built FTL routes for showcase
+  const builtFTLs = new Set(['104-105', '106-107']);
+
   return (
-    <div class="min-h-screen py-20 px-12" style="background: transparent;">
+    <div class="min-h-screen py-20 px-12 bg-transparent">
       {/* Header */}
-      <div class="max-w-5xl mx-auto mb-16 text-center">
+      <div id="header" class="mb-16 text-center">
         <h1 class="text-3xl font-light text-white tracking-[0.2em] uppercase mb-4">
           Sol3000 Component Library
         </h1>
@@ -121,13 +136,21 @@ function ComponentsApp() {
         </p>
       </div>
 
-      <div class="max-w-5xl mx-auto space-y-16">
+      <div id="main-content" class="space-y-16">
 
         {/* Stars Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            STARS (Star Component)
+        <section id="section-stars">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('stars')}
+          >
+            <span>STARS (Star Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('stars') ? '' : 'rotate-180'}`}
+            />
           </h2>
+          <Show when={!isCollapsed('stars')}>
           <GlassPanel class="p-8">
             <p class="text-xs text-gray-500 mb-6">
               Star visualization based on real stellar physics. Each spectral class has unique color and size from SPECTRAL_CLASSES.
@@ -142,6 +165,7 @@ function ComponentsApp() {
                   </feMerge>
                 </filter>
               </defs>
+              <g id="stars-showcase">
               <For each={Object.entries(SPECTRAL_CLASSES)}>
                 {([cls, data], i) => {
                   const x = 50 + i() * 95;
@@ -151,7 +175,7 @@ function ComponentsApp() {
                       <Star
                         id={i()}
                         size={size}
-                        color={generateSampleColor(cls)}
+                        color={generateSampleColor(cls, i())}
                         spectralClass={cls}
                         isSelected={false}
                         lodClass=""
@@ -169,20 +193,30 @@ function ComponentsApp() {
                   );
                 }}
               </For>
+              </g>
             </svg>
           </GlassPanel>
+          </Show>
         </section>
 
         {/* Star Systems Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            STAR SYSTEMS (StarSystem Component)
+        <section id="section-star-systems">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('star-systems')}
+          >
+            <span>STAR SYSTEMS (StarSystem Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('star-systems') ? '' : 'rotate-180'}`}
+            />
           </h2>
+          <Show when={!isCollapsed('star-systems')}>
           <GlassPanel class="p-8">
             <p class="text-xs text-gray-500 mb-6">
               Full star system with hit areas, selection rings, ownership indicators, and hover effects. Click to select.
             </p>
-            <svg width="100%" height="200" viewBox="0 0 600 200">
+            <svg width="100%" height="200" viewBox="0 0 600 200" id="star-systems-showcase">
               {/* Normal system */}
               <StarSystem
                 system={createSampleSystem(10, 'G', 80, 80)}
@@ -191,6 +225,7 @@ function ComponentsApp() {
                 shouldFade={false}
                 zoomLevel={0.5}
                 onClick={() => setSelectedSystemId(selectedSystemId() === 10 ? null : 10)}
+                id="star-system-normal"
               />
               <text x="80" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Normal</text>
 
@@ -202,6 +237,7 @@ function ComponentsApp() {
                 shouldFade={false}
                 zoomLevel={0.5}
                 onClick={() => {}}
+                id="star-system-selected"
               />
               <text x="200" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Selected</text>
 
@@ -213,6 +249,7 @@ function ComponentsApp() {
                 shouldFade={false}
                 zoomLevel={0.5}
                 onClick={() => setSelectedSystemId(selectedSystemId() === 12 ? null : 12)}
+                id="star-system-home"
               />
               <text x="320" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Home System</text>
 
@@ -224,6 +261,7 @@ function ComponentsApp() {
                 shouldFade={false}
                 zoomLevel={0.5}
                 onClick={() => setSelectedSystemId(selectedSystemId() === 13 ? null : 13)}
+                id="star-system-owned"
               />
               <text x="440" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Owned</text>
 
@@ -235,30 +273,106 @@ function ComponentsApp() {
                 shouldFade={true}
                 zoomLevel={0.5}
                 onClick={() => {}}
+                id="star-system-fog"
               />
               <text x="560" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Fog (fading)</text>
             </svg>
           </GlassPanel>
+          </Show>
         </section>
 
-        {/* FTL Routes Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            FTL TETHER FLOW (TetherFlowShowcase Component)
+        {/* TBD: Canvas Particle Animation */}
+        <section id="section-canvas-particles-tbd">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('canvas-particles')}
+          >
+            <span>CANVAS PARTICLE ANIMATION <span class="text-purple-400">[TBD]</span></span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('canvas-particles') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <TetherFlowShowcase />
-        </section>
+          <Show when={!isCollapsed('canvas-particles')}>
 
-        {/* FTL Routes Section (Original) */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            FTL ROUTES (FTLRoute & FTLTethers Components)
-          </h2>
           <GlassPanel class="p-8">
+            <div class="space-y-4">
+              <p class="text-xs text-gray-500">
+                Alternative implementation using HTML5 Canvas for particle-based flow animation.
+                Currently archived in favor of CSS animation, but available for future use.
+              </p>
+
+              <div class="grid grid-cols-2 gap-4 text-xs">
+                <div class="p-4 bg-white/5 rounded">
+                  <div class="text-white mb-2 font-bold">Current: CSS Animation</div>
+                  <ul class="space-y-1 text-gray-400">
+                    <li>• Simple SVG + CSS</li>
+                    <li>• Hardware accelerated</li>
+                    <li>• 2.5s animation loop</li>
+                    <li>• No JS animation loop</li>
+                  </ul>
+                </div>
+
+                <div class="p-4 bg-purple-500/10 border border-purple-500/30 rounded">
+                  <div class="text-purple-300 mb-2 font-bold">TBD: Canvas Particles</div>
+                  <ul class="space-y-1 text-gray-400">
+                    <li>• 40 particles per route</li>
+                    <li>• 60fps RAF loop</li>
+                    <li>• Dual-lane effect</li>
+                    <li>• Fade in/out at ends</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="p-4 bg-blue-500/10 border border-blue-500/30 rounded">
+                <div class="text-blue-300 text-xs font-bold mb-2">📁 Backup Location</div>
+                <code class="text-[10px] text-gray-400 font-mono">
+                  src/components/game/TetherFlowShowcase.canvas-backup.jsx
+                </code>
+              </div>
+
+              <div class="p-4 bg-white/5 rounded">
+                <div class="text-white text-xs font-bold mb-2">Potential Use Cases</div>
+                <ul class="space-y-1 text-[11px] text-gray-400">
+                  <li>• Complex particle effects (explosions, warp jumps)</li>
+                  <li>• Dynamic flow visualization (varying density/speed based on trade volume)</li>
+                  <li>• Interactive effects (particles react to mouse/click events)</li>
+                  <li>• Multi-route optimization (render all trade routes in single canvas)</li>
+                </ul>
+              </div>
+            </div>
+          </GlassPanel>
+
+          {/* Live Demo */}
+          <div class="mt-6">
+            <TetherFlowShowcaseCanvas id="canvas-particles-demo" />
+          </div>
+          </Show>
+        </section>
+
+        {/* FTL Routes & Tether Flow Section */}
+        <section id="section-ftl-routes">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('ftl-routes')}
+          >
+            <span>FTL ROUTES & TETHER FLOW (FTLRoute & TetherFlowShowcase Components)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('ftl-routes') ? '' : 'rotate-180'}`}
+            />
+          </h2>
+          <Show when={!isCollapsed('ftl-routes')}>
+
+          {/* Tether Flow Animation Showcase */}
+          <TetherFlowShowcase id="tether-flow-showcase" />
+
+          {/* FTL Route States */}
+          <GlassPanel class="p-8 mt-6">
             <p class="text-xs text-gray-500 mb-6">
-              FTL routes connect star systems. Different states: default, selected, built, built+selected. Click routes to select.
+              FTL routes connect star systems. States: default, selected, built, built+selected, dimmed (fog). Click routes to select.
             </p>
-            <svg width="100%" height="220" viewBox="0 0 620 220">
+            <svg width="100%" height="220" viewBox="0 0 620 220" id="ftl-routes-showcase">
 
               {/* Row 1: Route states */}
               {/* Default route */}
@@ -268,15 +382,15 @@ function ComponentsApp() {
                 isVisible={true}
                 shouldFade={false}
                 isSelected={selectedRouteId() === '100-101'}
-                isBuilt={false}
+                builtFTLs={builtFTLs}
                 onSelect={setSelectedRouteId}
+                id="ftl-route-default"
               />
-              <Star id={100} size={6} color={generateSampleColor('G')} spectralClass="G" isSelected={false} lodClass="" />
               <g transform="translate(50, 50)">
-                <Star id={100} size={6} color={generateSampleColor('G')} spectralClass="G" isSelected={false} lodClass="" />
+                <Star id={100} size={6} color={generateSampleColor('G', 100)} spectralClass="G" isSelected={false} lodClass="" />
               </g>
               <g transform="translate(180, 50)">
-                <Star id={101} size={5} color={generateSampleColor('K')} spectralClass="K" isSelected={false} lodClass="" />
+                <Star id={101} size={5} color={generateSampleColor('K', 101)} spectralClass="K" isSelected={false} lodClass="" />
               </g>
               <text x="115" y="85" text-anchor="middle" fill="#6b7280" font-size="10">Default</text>
 
@@ -287,14 +401,15 @@ function ComponentsApp() {
                 isVisible={true}
                 shouldFade={false}
                 isSelected={true}
-                isBuilt={false}
+                builtFTLs={builtFTLs}
                 onSelect={() => {}}
+                id="ftl-route-selected"
               />
               <g transform="translate(310, 50)">
-                <Star id={102} size={6} color={generateSampleColor('G')} spectralClass="G" isSelected={false} lodClass="" />
+                <Star id={102} size={6} color={generateSampleColor('G', 102)} spectralClass="G" isSelected={false} lodClass="" />
               </g>
               <g transform="translate(440, 50)">
-                <Star id={103} size={4} color={generateSampleColor('M')} spectralClass="M" isSelected={false} lodClass="" />
+                <Star id={103} size={4} color={generateSampleColor('M', 103)} spectralClass="M" isSelected={false} lodClass="" />
               </g>
               <text x="375" y="85" text-anchor="middle" fill="#6b7280" font-size="10">Selected</text>
 
@@ -306,14 +421,15 @@ function ComponentsApp() {
                 isVisible={true}
                 shouldFade={false}
                 isSelected={selectedRouteId() === '104-105'}
-                isBuilt={true}
+                builtFTLs={builtFTLs}
                 onSelect={setSelectedRouteId}
+                id="ftl-route-built"
               />
               <g transform="translate(50, 150)">
-                <Star id={104} size={6} color={generateSampleColor('G')} spectralClass="G" isSelected={false} lodClass="" />
+                <Star id={104} size={6} color={generateSampleColor('G', 104)} spectralClass="G" isSelected={false} lodClass="" />
               </g>
               <g transform="translate(180, 150)">
-                <Star id={105} size={8} color={generateSampleColor('B')} spectralClass="B" isSelected={false} lodClass="" />
+                <Star id={105} size={8} color={generateSampleColor('B', 105)} spectralClass="B" isSelected={false} lodClass="" />
               </g>
               <text x="115" y="185" text-anchor="middle" fill="#6b7280" font-size="10">Built</text>
 
@@ -324,97 +440,132 @@ function ComponentsApp() {
                 isVisible={true}
                 shouldFade={false}
                 isSelected={true}
-                isBuilt={true}
+                builtFTLs={builtFTLs}
                 onSelect={() => {}}
+                id="ftl-route-built-selected"
               />
               <g transform="translate(310, 150)">
-                <Star id={106} size={5} color={generateSampleColor('K')} spectralClass="K" isSelected={false} lodClass="" />
+                <Star id={106} size={5} color={generateSampleColor('K', 106)} spectralClass="K" isSelected={false} lodClass="" />
               </g>
               <g transform="translate(440, 150)">
-                <Star id={107} size={7} color={generateSampleColor('A')} spectralClass="A" isSelected={false} lodClass="" />
+                <Star id={107} size={7} color={generateSampleColor('A', 107)} spectralClass="A" isSelected={false} lodClass="" />
               </g>
               <text x="375" y="185" text-anchor="middle" fill="#6b7280" font-size="10">Built + Selected</text>
 
-              {/* Tethers (fog of war hints) */}
+              {/* Dimmed routes (fog of war hints) - one visible system */}
+              <FTLRoute
+                route={{ source: { x: 500, y: 100 }, target: { x: 580, y: 70 } }}
+                routeId="200-201"
+                isVisible={true}
+                shouldFade={false}
+                isSelected={false}
+                isDimmed={true}
+                onSelect={() => {}}
+                id="ftl-route-dimmed-1"
+              />
+              <FTLRoute
+                route={{ source: { x: 500, y: 100 }, target: { x: 590, y: 120 } }}
+                routeId="200-202"
+                isVisible={true}
+                shouldFade={false}
+                isSelected={false}
+                isDimmed={true}
+                onSelect={() => {}}
+                id="ftl-route-dimmed-2"
+              />
               <g transform="translate(500, 100)">
-                <FTLTethers routes={[
-                  { source: { x: 0, y: 0 }, target: { x: 80, y: -30 } },
-                  { source: { x: 0, y: 0 }, target: { x: 90, y: 20 } },
-                ]} />
-                <Star id={200} size={5} color={generateSampleColor('K')} spectralClass="K" isSelected={false} lodClass="" />
-                <circle cx="80" cy="-30" r="3" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.1)" />
-                <circle cx="90" cy="20" r="3" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.1)" />
+                <Star id={200} size={5} color={generateSampleColor('K', 200)} spectralClass="K" isSelected={false} lodClass="" />
               </g>
-              <text x="540" y="185" text-anchor="middle" fill="#6b7280" font-size="10">Tethers (fog)</text>
+              <text x="545" y="185" text-anchor="middle" fill="#6b7280" font-size="10">Dimmed (fog)</text>
             </svg>
           </GlassPanel>
+          </Show>
         </section>
 
         {/* Glass Panels Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            GLASS PANELS (GlassPanel Component)
+        <section id="section-glass-panels">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('glass-panels')}
+          >
+            <span>GLASS PANELS (GlassPanel Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('glass-panels') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <div class="grid grid-cols-2 gap-4">
-            <GlassPanel class="p-6">
+          <Show when={!isCollapsed('glass-panels')}>
+
+          <div class="grid grid-cols-2 gap-4" id="glass-panels-showcase">
+            <GlassPanel variant="default" class="p-6" id="glass-panel-default">
               <h3 class="text-sm tracking-widest text-white mb-2">DEFAULT PANEL</h3>
               <p class="text-xs text-gray-400">
                 Standard glassmorphism container with blur backdrop and subtle border.
               </p>
             </GlassPanel>
 
-            <GlassPanel class="p-6 border border-blue-500/30">
+            <GlassPanel variant="selected" class="p-6" id="glass-panel-selected">
               <h3 class="text-sm tracking-widest text-blue-300 mb-2">SELECTED PANEL</h3>
               <p class="text-xs text-gray-400">
                 Panel with blue accent border for selected or active states.
               </p>
             </GlassPanel>
 
-            <GlassPanel class="p-6" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+            <GlassPanel variant="highlighted" class="p-6" id="glass-panel-highlighted">
               <h3 class="text-sm tracking-widest text-white mb-2">HIGHLIGHTED PANEL</h3>
               <p class="text-xs text-gray-400">
                 Panel with blue-tinted background for emphasis.
               </p>
             </GlassPanel>
 
-            <GlassPanel class="p-6 border border-red-500/30">
+            <GlassPanel variant="warning" class="p-6" id="glass-panel-warning">
               <h3 class="text-sm tracking-widest text-red-300 mb-2">WARNING PANEL</h3>
               <p class="text-xs text-gray-400">
                 Panel with red accent for warnings or destructive actions.
               </p>
             </GlassPanel>
           </div>
+          </Show>
         </section>
 
         {/* Buttons Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            BUTTONS
+        <section id="section-buttons">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('buttons')}
+          >
+            <span>BUTTONS</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('buttons') ? '' : 'rotate-180'}`}
+            />
           </h2>
+          <Show when={!isCollapsed('buttons')}>
+
           <GlassPanel class="p-8">
-            <div class="space-y-8">
+            <div class="space-y-8" id="buttons-showcase">
               {/* Start Game Button */}
               <div>
                 <h3 class="text-xs text-gray-500 tracking-widest mb-4">START GAME BUTTON (StartGameButton Component)</h3>
                 <div class="relative h-16 border border-white/10 rounded overflow-hidden">
-                  <StartGameButton onClick={() => alert('Start Game clicked!')} />
+                  <StartGameButton id="button-start-game" onClick={() => alert('Start Game clicked!')} />
                 </div>
               </div>
 
               {/* Command Buttons (CommandBar.jsx style) */}
               <div>
                 <h3 class="text-xs text-gray-500 tracking-widest mb-4">COMMAND BAR (CommandBar style)</h3>
-                <GlassPanel class="w-auto h-[70px] flex items-center justify-center px-8">
+                <GlassPanel class="w-auto h-[70px] flex items-center justify-center px-8" id="button-command-bar">
                   <div class="flex items-center space-x-8">
-                    <Button variant="command" icon={<RotateCcw size={18} class="text-gray-400 group-hover:text-red-300 transition-colors" />} label="RESET" danger />
+                    <Button id="button-command-reset" variant="command" icon={<RotateCcw size={18} class="text-gray-400 group-hover:text-red-300 transition-colors" />} label="RESET" danger />
 
                     <div class="h-8 w-px bg-white/10" />
 
-                    <Button variant="command" icon={<Database size={18} class="text-gray-400 group-hover:text-white transition-colors" />} label="TECH" />
+                    <Button id="button-command-tech" variant="command" icon={<Database size={18} class="text-gray-400 group-hover:text-white transition-colors" />} label="TECH" />
 
                     <div class="h-8 w-px bg-white/10" />
 
-                    <Button variant="command" icon={<Navigation size={18} class="text-gray-400 group-hover:text-white transition-colors" />} label="FLEET" />
+                    <Button id="button-command-fleet" variant="command" icon={<Navigation size={18} class="text-gray-400 group-hover:text-white transition-colors" />} label="FLEET" />
                   </div>
                 </GlassPanel>
               </div>
@@ -422,10 +573,10 @@ function ComponentsApp() {
               {/* Primary & Secondary Buttons (Sidebar.jsx style) */}
               <div>
                 <h3 class="text-xs text-gray-500 tracking-widest mb-4">PRIMARY & SECONDARY (Sidebar style)</h3>
-                <div class="space-y-3" style="max-width: 300px;">
-                  <Button variant="primary" fullWidth>MANAGE BUILDINGS</Button>
-                  <Button variant="secondary" fullWidth>SCAN SYSTEM (50 CR)</Button>
-                  <Button variant="secondary" fullWidth disabled>DISABLED STATE</Button>
+                <div class="space-y-3 max-w-[300px]">
+                  <Button id="button-primary-manage" variant="primary" fullWidth>MANAGE BUILDINGS</Button>
+                  <Button id="button-secondary-scan" variant="secondary" fullWidth>SCAN SYSTEM (50 CR)</Button>
+                  <Button id="button-secondary-disabled" variant="secondary" fullWidth disabled>DISABLED STATE</Button>
                 </div>
               </div>
 
@@ -433,9 +584,9 @@ function ComponentsApp() {
               <div>
                 <h3 class="text-xs text-gray-500 tracking-widest mb-4">GLASS BUTTONS (BuildingList style)</h3>
                 <div class="flex items-center gap-4">
-                  <Button variant="glass">Build</Button>
-                  <Button variant="glass">Upgrade</Button>
-                  <Button variant="glass" disabled>Disabled</Button>
+                  <Button id="button-glass-build" variant="glass">Build</Button>
+                  <Button id="button-glass-upgrade" variant="glass">Upgrade</Button>
+                  <Button id="button-glass-disabled" variant="glass" disabled>Disabled</Button>
                 </div>
               </div>
 
@@ -443,9 +594,9 @@ function ComponentsApp() {
               <div>
                 <h3 class="text-xs text-gray-500 tracking-widest mb-4">ICON BUTTONS (close button style)</h3>
                 <div class="flex items-center gap-4">
-                  <Button variant="icon" icon={<Zap size={18} />} />
-                  <Button variant="icon" icon={<Box size={18} />} />
-                  <Button variant="icon" icon={<Database size={18} />} />
+                  <Button id="button-icon-zap" variant="icon" icon={<Zap size={18} />} />
+                  <Button id="button-icon-box" variant="icon" icon={<Box size={18} />} />
+                  <Button id="button-icon-database" variant="icon" icon={<Database size={18} />} />
                 </div>
               </div>
 
@@ -453,28 +604,38 @@ function ComponentsApp() {
               <div>
                 <h3 class="text-xs text-gray-500 tracking-widest mb-4">TEXT & SUCCESS BUTTONS</h3>
                 <div class="flex items-center gap-4">
-                  <Button variant="text">&larr; BACK TO OVERVIEW</Button>
-                  <Button variant="success">LAUNCH</Button>
+                  <Button id="button-text-back" variant="text">&larr; BACK TO OVERVIEW</Button>
+                  <Button id="button-success-launch" variant="success">LAUNCH</Button>
                 </div>
               </div>
             </div>
           </GlassPanel>
+          </Show>
         </section>
 
         {/* Progress Bars Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            PROGRESS BARS (ProgressBar Component)
+        <section id="section-progress-bars">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('progress-bars')}
+          >
+            <span>PROGRESS BARS (ProgressBar Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('progress-bars') ? '' : 'rotate-180'}`}
+            />
           </h2>
+          <Show when={!isCollapsed('progress-bars')}>
+
           <GlassPanel class="p-8 space-y-8">
             {/* Default Progress Bar */}
             <div>
               <h3 class="text-xs text-gray-500 tracking-widest mb-3">DEFAULT VARIANT</h3>
               <div class="space-y-3">
-                <ProgressBar progress={25} />
-                <ProgressBar progress={50} />
-                <ProgressBar progress={75} />
-                <ProgressBar progress={100} />
+                <ProgressBar id="progressbar-25" progress={25} />
+                <ProgressBar id="progressbar-50" progress={50} />
+                <ProgressBar id="progressbar-75" progress={75} />
+                <ProgressBar id="progressbar-100" progress={100} />
               </div>
             </div>
 
@@ -482,7 +643,7 @@ function ComponentsApp() {
             <div>
               <h3 class="text-xs text-gray-500 tracking-widest mb-3">WITH GLOW EFFECT</h3>
               <div class="space-y-3">
-                <ProgressBar progress={60} glow={true} />
+                <ProgressBar id="progressbar-glow" progress={60} glow={true} />
               </div>
             </div>
 
@@ -490,43 +651,54 @@ function ComponentsApp() {
             <div>
               <h3 class="text-xs text-gray-500 tracking-widest mb-3">GLASS VARIANT</h3>
               <div class="space-y-3">
-                <ProgressBar progress={35} variant="glass" />
-                <ProgressBar progress={65} variant="glass" label="RESEARCHING..." />
-                <ProgressBar progress={90} variant="glass" label="ALMOST DONE" />
+                <ProgressBar id="progressbar-glass-35" progress={35} variant="glass" />
+                <ProgressBar id="progressbar-glass-65" progress={65} variant="glass" label="RESEARCHING..." />
+                <ProgressBar id="progressbar-glass-90" progress={90} variant="glass" label="ALMOST DONE" />
               </div>
             </div>
 
             {/* Interactive Demo */}
             <div>
               <h3 class="text-xs text-gray-500 tracking-widest mb-3">INTERACTIVE DEMO</h3>
-              <ProgressBar progress={progress()} variant="glass" label={`${progress()}%`} />
+              <ProgressBar id="progressbar-interactive" progress={progress()} variant="glass" label={`${progress()}%`} />
               <div class="flex gap-2 mt-4">
-                <Button variant="glass" onClick={() => setProgress(p => Math.max(0, p - 10))}>
+                <Button id="button-progress-decrease" variant="glass" onClick={() => setProgress(p => Math.max(0, p - 10))}>
                   - 10%
                 </Button>
-                <Button variant="glass" onClick={() => setProgress(p => Math.min(100, p + 10))}>
+                <Button id="button-progress-increase" variant="glass" onClick={() => setProgress(p => Math.min(100, p + 10))}>
                   + 10%
                 </Button>
               </div>
             </div>
           </GlassPanel>
+          </Show>
         </section>
 
         {/* Modal Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            MODAL (Modal Component)
+        <section id="section-modal">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('modal')}
+          >
+            <span>MODAL (Modal Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('modal') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <GlassPanel class="p-8">
+          <Show when={!isCollapsed('modal')}>
+
+          <GlassPanel id="modal-showcase-trigger" class="p-8">
             <p class="text-xs text-gray-500 mb-4">
               Modal dialogs with glassmorphism styling. Used for tech research, fleet management, etc.
             </p>
-            <Button variant="glass" onClick={() => setShowModal(true)}>
+            <Button id="button-open-modal" variant="glass" onClick={() => setShowModal(true)}>
               Open Modal Demo
             </Button>
           </GlassPanel>
 
           <Modal
+            id="modal-showcase"
             open={showModal()}
             onClose={() => setShowModal(false)}
             title="SAMPLE MODAL"
@@ -547,54 +719,94 @@ function ComponentsApp() {
               <ProgressBar progress={75} variant="glass" label="75% Complete" />
             </div>
           </Modal>
+          </Show>
         </section>
 
         {/* Resource Icons Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            RESOURCE ICONS (ResourceIcon & ResourceIconShowcase Components)
+        <section id="section-resource-icons">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('resource-icons')}
+          >
+            <span>RESOURCE ICONS (ResourceIcon & ResourceIconShowcase Components)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('resource-icons') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <ResourceIconShowcase />
+          <Show when={!isCollapsed('resource-icons')}>
+          <ResourceIconShowcase id="resource-icons-showcase" />
+          </Show>
         </section>
 
         {/* Building Icons Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            BUILDING ICONS (BuildingIcon & BuildingIconShowcase Components)
+        <section id="section-building-icons">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('building-icons')}
+          >
+            <span>BUILDING ICONS (BuildingIcon & BuildingIconShowcase Components)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('building-icons') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <BuildingIconShowcase />
+          <Show when={!isCollapsed('building-icons')}>
+          <BuildingIconShowcase id="building-icons-showcase" />
+          </Show>
         </section>
 
         {/* Background Elements Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            BACKGROUND ELEMENTS (VignetteOverlay & BackgroundGrid Components)
+        <section id="section-background-elements">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('background-elements')}
+          >
+            <span>BACKGROUND ELEMENTS (VignetteOverlay & BackgroundGrid Components)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('background-elements') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <div class="grid grid-cols-2 gap-4">
+          <Show when={!isCollapsed('background-elements')}>
+
+          <div class="grid grid-cols-2 gap-4" id="background-elements-showcase">
             {/* Vignette */}
-            <div class="relative h-48 border-2 border-white/20 rounded overflow-hidden" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
-              <VignetteOverlay />
-              <div class="absolute bottom-4 left-4">
-                <span class="text-xs text-gray-400 tracking-widest">VIGNETTE OVERLAY</span>
-              </div>
-            </div>
+            <DemoContainer
+              id="vignette-container"
+              background="gradient"
+              label="VIGNETTE OVERLAY"
+            >
+              <VignetteOverlay id="vignette-overlay" />
+            </DemoContainer>
 
             {/* Grid */}
-            <div class="relative h-48 border-2 border-white/20 rounded overflow-hidden" style="background: #333;">
-              <BackgroundGrid />
-              <div class="absolute bottom-4 left-4">
-                <span class="text-xs text-gray-400 tracking-widest">BACKGROUND GRID</span>
-              </div>
-            </div>
+            <DemoContainer
+              id="grid-container"
+              background="solid"
+              label="BACKGROUND GRID"
+            >
+              <BackgroundGrid id="background-grid" />
+            </DemoContainer>
           </div>
+          </Show>
         </section>
 
         {/* Typography Section */}
-        <section>
-          <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-            TYPOGRAPHY
+        <section id="section-typography">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('typography')}
+          >
+            <span>TYPOGRAPHY</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('typography') ? '' : 'rotate-180'}`}
+            />
           </h2>
-          <GlassPanel class="p-8 space-y-6">
+          <Show when={!isCollapsed('typography')}>
+
+          <GlassPanel id="typography-showcase" class="p-8 space-y-6">
             <div>
               <span class="text-[10px] text-gray-500 tracking-widest">HEADING STYLES</span>
               <h1 class="text-3xl font-light text-white tracking-[0.2em] uppercase mt-2">Main Title</h1>
@@ -631,13 +843,15 @@ function ComponentsApp() {
               </div>
             </div>
           </GlassPanel>
+          </Show>
         </section>
 
       </div>
 
       {/* Footer */}
-      <div class="mt-20 text-center">
+      <div id="footer" class="mt-20 text-center">
         <a
+          id="link-return-to-game"
           href="/"
           class="text-[10px] text-blue-400 hover:text-blue-300 tracking-widest uppercase border border-blue-400/30 px-6 py-3 rounded transition-all hover:bg-blue-400/10"
         >

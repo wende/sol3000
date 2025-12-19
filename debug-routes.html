@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Route Types Comparison</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+
+    svg {
+      background: #0a0a0a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 10px 0;
+    }
+
+    @keyframes tradePulse {
+      to { stroke-dashoffset: -120; }
+    }
+
+    /* Regular FTL line (unbuilt) */
+    .ftl-line {
+      stroke: rgba(255, 255, 255, 0.3);
+      stroke-width: 1.5px;
+      stroke-dasharray: 4, 4;
+    }
+
+    /* Regular FTL line (built) */
+    .ftl-line-built {
+      stroke: rgba(255, 255, 255, 0.6);
+      stroke-width: 2px;
+      stroke-dasharray: none;
+    }
+
+    /* Trade tether base */
+    .ftl-line-trade-base {
+      stroke: rgba(255, 255, 255, 0.6);
+      stroke-width: 2px;
+      stroke-dasharray: none;
+    }
+
+    /* Trade tether flow overlay */
+    .ftl-line-trade-flow {
+      stroke: rgba(255, 255, 255, 0.75);
+      stroke-width: 3px;
+      stroke-dasharray: 1, 14;
+      stroke-dashoffset: 0;
+      stroke-linecap: square;
+      animation: tradePulse 2.5s linear infinite;
+      will-change: stroke-dashoffset;
+      opacity: 0.75;
+      filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.35));
+    }
+
+    .label {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      margin: 15px 0;
+      border-left: 3px solid #4ade80;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    h1 { color: #4ade80; }
+    h3 { color: #60a5fa; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>🔍 FTL Route Types - Visual Comparison</h1>
+
+  <h3>1. UNBUILT Route (should have animated dashes)</h3>
+  <div class="label">Class: ftl-line<br>Expected: Faint white, animated dashed line</div>
+  <svg width="600" height="80">
+    <line x1="50" y1="40" x2="550" y2="40" class="ftl-line" />
+    <circle cx="50" cy="40" r="5" fill="#fff" opacity="0.3" />
+    <circle cx="550" cy="40" r="5" fill="#fff" opacity="0.3" />
+  </svg>
+
+  <h3>2. REGULAR BUILT Route (should be solid, NO animation)</h3>
+  <div class="label">Class: ftl-line-built<br>Expected: Brighter white, solid line (no dashes, no animation)</div>
+  <svg width="600" height="80">
+    <line x1="50" y1="40" x2="550" y2="40" class="ftl-line-built" />
+    <circle cx="50" cy="40" r="5" fill="#fff" opacity="0.6" />
+    <circle cx="550" cy="40" r="5" fill="#fff" opacity="0.6" />
+  </svg>
+
+  <h3>3. TRADE TETHER Route (should have ANIMATED flow on top)</h3>
+  <div class="label">Class: ftl-line-trade-base + ftl-line-trade-flow<br>Expected: Solid base + animated dashes on top</div>
+  <svg width="600" height="80">
+    <!-- Base line (static) -->
+    <line x1="50" y1="40" x2="550" y2="40" class="ftl-line-trade-base" />
+    <!-- Flow overlay (animated) -->
+    <line x1="50" y1="40" x2="550" y2="40" class="ftl-line-trade-flow" />
+    <circle cx="50" cy="40" r="5" fill="#fff" opacity="0.6" />
+    <circle cx="550" cy="40" r="5" fill="#fff" opacity="0.6" />
+  </svg>
+
+  <div class="comparison">
+    <div>
+      <h3>Regular Built (static)</h3>
+      <svg width="100%" height="100">
+        <line x1="30" y1="50" x2="250" y2="50" class="ftl-line-built" />
+        <circle cx="30" cy="50" r="6" fill="#000" stroke="#fff" stroke-width="1" />
+        <circle cx="250" cy="50" r="6" fill="#000" stroke="#fff" stroke-width="1" />
+        <text x="140" y="75" fill="#6b7280" font-size="11" text-anchor="middle">REGULAR BUILT</text>
+      </svg>
+    </div>
+    <div>
+      <h3>Trade Tether (animated)</h3>
+      <svg width="100%" height="100">
+        <line x1="30" y1="50" x2="250" y2="50" class="ftl-line-trade-base" />
+        <line x1="30" y1="50" x2="250" y2="50" class="ftl-line-trade-flow" />
+        <circle cx="30" cy="50" r="6" fill="#000" stroke="#fff" stroke-width="1" />
+        <circle cx="250" cy="50" r="6" fill="#000" stroke="#fff" stroke-width="1" />
+        <text x="140" y="75" fill="#6b7280" font-size="11" text-anchor="middle">TRADE TETHER</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="label" style="border-left-color: #f87171; margin-top: 40px;">
+    <strong>⚠️ Key Difference:</strong><br>
+    • Regular Built: ONE solid line (static)<br>
+    • Trade Tether: TWO overlapping lines (base static + flow animated)
+  </div>
+
+  <div class="label" style="border-left-color: #60a5fa; margin-top: 20px;">
+    <strong>📋 To test in your game:</strong><br>
+    1. Build an FTL that does NOT connect M+ to M-<br>
+    2. It should look like "Regular Built" above (solid, no animation)<br>
+    3. Build an FTL connecting M+ ↔ M-<br>
+    4. It should look like "Trade Tether" above (animated dashes on top)
+  </div>
+
+  <script>
+    console.log('✓ Route comparison test page loaded');
+    console.log('✓ Compare the 3 route types above');
+    console.log('✓ Regular Built should be SOLID with NO animation');
+    console.log('✓ Trade Tether should have MOVING DASHES on top');
+  </script>
+</body>
+</html>

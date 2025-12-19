@@ -24,14 +24,14 @@ import { TECH_TREE } from '../../utils/gameState';
 export const TechListItem = (props) => {
   return (
     <div
-      class={`p-4 border rounded transition-all ${
+      class={`p-4 rounded transition-all ${
         props.isResearched
-          ? 'border-green-500/30 bg-green-500/5'
+          ? 'bg-green-500/5'
           : props.isResearching
-          ? 'border-white/30 bg-white/5'
+          ? 'bg-white/5'
           : props.canResearch
-          ? 'border-white/20 hover:border-white/40 cursor-pointer hover:bg-white/5'
-          : 'border-white/10 opacity-50'
+          ? 'cursor-pointer hover:bg-white/5'
+          : 'opacity-50'
       }`}
       onClick={() => props.canResearch && props.onResearch(props.tech.id)}
     >
@@ -55,7 +55,7 @@ export const TechListItem = (props) => {
         </div>
         <div class="text-right">
           <Show when={!props.isResearched}>
-            <div class="text-xs text-yellow-400">{props.tech.cost} CR</div>
+            <div class="text-xs text-gray-300">{props.tech.cost} CR</div>
             <div class="text-[10px] text-gray-500">{formatTime(props.tech.researchTime)}</div>
           </Show>
           <Show when={props.isResearched}>

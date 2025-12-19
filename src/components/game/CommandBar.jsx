@@ -79,7 +79,7 @@ export const CommandBar = (props) => {
             class="flex flex-col items-center group"
             style="display: flex; flex-direction: column; align-items: center;"
           >
-            <div class="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:border-red-400/50 group-hover:bg-red-500/10 transition-all"
+            <div class="w-10 h-10 flex items-center justify-center group-hover:bg-red-500/10 transition-all"
               style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
               <RotateCcw size={18} class="text-gray-400 group-hover:text-red-300 transition-colors" />
             </div>
@@ -94,7 +94,7 @@ export const CommandBar = (props) => {
             class="flex flex-col items-center group"
             style="display: flex; flex-direction: column; align-items: center;"
           >
-            <div class="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:border-blue-300/50 group-hover:bg-blue-500/10 transition-all"
+            <div class="w-10 h-10 flex items-center justify-center group-hover:bg-blue-500/10 transition-all"
               style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
               <Database size={18} class="text-gray-400 group-hover:text-white transition-colors" />
             </div>
@@ -109,7 +109,7 @@ export const CommandBar = (props) => {
             class="flex flex-col items-center group relative"
             style="display: flex; flex-direction: column; align-items: center;"
           >
-            <div class="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:border-blue-300/50 group-hover:bg-blue-500/10 transition-all"
+            <div class="w-10 h-10 flex items-center justify-center group-hover:bg-blue-500/10 transition-all"
               style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
               <Navigation size={18} class="text-gray-400 group-hover:text-white transition-colors" />
             </div>

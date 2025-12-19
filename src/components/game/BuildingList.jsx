@@ -17,13 +17,13 @@ import './BuildingList.css';
 const BuildingIcon = ({ buildingId, size = 18 }) => {
   switch (buildingId) {
     case 'oreMine':
-      return <Pickaxe size={size} class="text-amber-400" />;
+      return <Pickaxe size={size} class="text-white" />;
     case 'solarPlant':
-      return <Zap size={size} class="text-yellow-300" />;
+      return <Zap size={size} class="text-white" />;
     case 'tradeHub':
-      return <Coins size={size} class="text-emerald-400" />;
+      return <Coins size={size} class="text-white" />;
     case 'shipyard':
-      return <Rocket size={size} class="text-blue-400" />;
+      return <Rocket size={size} class="text-white" />;
     default:
       return <Factory size={size} class="text-gray-400" />;
   }
@@ -132,19 +132,19 @@ export function BuildingList(props) {
       {/* Resource Header */}
       <div class="resource-bar glass-panel-inset">
         <div class="resource-item">
-          <Pickaxe size={12} class="text-amber-400" />
+          <Pickaxe size={12} class="text-white" />
           <span class="res-label">ORE</span>
           <span id="res-ore-value" class="res-value">{Math.floor(resources().ore)}</span>
         </div>
         <div class="resource-item">
-          <Zap size={12} class="text-yellow-300" />
+          <Zap size={12} class="text-white" />
           <span class="res-label">ENERGY</span>
           <span id="res-energy-value" class={`res-value ${
             energyState().usage > energyState().capacity ? 'text-red-400' : ''
           }`}>{energyState().capacity - energyState().usage}/{energyState().capacity}</span>
         </div>
         <div class="resource-item">
-          <Coins size={12} class="text-emerald-400" />
+          <Coins size={12} class="text-white" />
           <span class="res-label">CREDITS</span>
           <span id="res-credits-value" class="res-value">{Math.floor(resources().credits)}</span>
         </div>
@@ -195,10 +195,10 @@ export function BuildingList(props) {
                   </div>
                   <div class="building-desc">{building.description}</div>
                   <Show when={level() > 0 || production()}>
-                    <div class="building-production text-green-400/80">{production()}</div>
+                    <div class="building-production text-gray-300">{production()}</div>
                   </Show>
                   <Show when={energyUsage()}>
-                    <div class="building-production text-yellow-400/80">Uses {energyUsage()}</div>
+                    <div class="building-production text-gray-300">Uses {energyUsage()}</div>
                   </Show>
                   <div class="building-cost">
                     <Show when={cost().ore > 0}>
@@ -252,13 +252,13 @@ export function BuildingList(props) {
 
       {/* Ship Construction Section */}
       <Show when={canBuildShips()}>
-        <div class="mt-6 pt-6 border-t border-white/10">
+        <div class="mt-6 pt-6">
           <h3 class="text-xs text-gray-500 tracking-widest mb-4">SHIP CONSTRUCTION</h3>
 
           <div class={`building-row glass-panel-row ${isActivelyBuildingShip() ? 'building-in-progress' : ''} ${isShipQueued() ? 'building-queued' : ''}`}>
             <div class="building-icon">
               <div class="icon-placeholder">
-                <Rocket size={24} class="text-blue-400" />
+                <Rocket size={24} class="text-white" />
               </div>
             </div>
             <div class="building-info">
@@ -274,7 +274,7 @@ export function BuildingList(props) {
                   {COLONY_SHIP.cost.credits} Cr
                 </span>
               </div>
-              <div class="building-production text-yellow-400/80">Uses {COLONY_SHIP.energyUsage} ENERGY when docked</div>
+              <div class="building-production text-gray-300">Uses {COLONY_SHIP.energyUsage} ENERGY when docked</div>
             </div>
             <div class="building-action">
               <Show when={isActivelyBuildingShip()}>
@@ -312,8 +312,8 @@ export function BuildingList(props) {
       </Show>
 
       <Show when={!canBuildShips()}>
-        <div class="mt-6 pt-6 border-t border-white/10">
-          <div class="p-4 bg-white/5 border border-white/10 rounded text-center">
+        <div class="mt-6 pt-6">
+          <div class="p-4 bg-white/5 rounded text-center">
             <Rocket size={24} class="mx-auto text-gray-600 mb-2" />
             <p class="text-xs text-gray-500">Build a Shipyard to construct Colony Ships</p>
           </div>

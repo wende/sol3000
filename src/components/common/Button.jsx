@@ -49,9 +49,6 @@ export const Button = (props) => {
   // Command variant: circular icon + label below (CommandBar.jsx style)
   // Copied exactly from CommandBar.jsx
   if (variant() === 'command') {
-    const hoverBorder = local.danger
-      ? 'group-hover:border-red-400/50'
-      : 'group-hover:border-blue-300/50';
     const hoverBg = local.danger
       ? 'group-hover:bg-red-500/10'
       : 'group-hover:bg-blue-500/10';
@@ -68,7 +65,7 @@ export const Button = (props) => {
         {...others}
       >
         <div
-          class={`w-10 h-10 rounded-full border border-white/20 flex items-center justify-center ${hoverBorder} ${hoverBg} transition-all`}
+          class={`w-10 h-10 flex items-center justify-center ${hoverBg} transition-all`}
           style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;"
         >
           {local.icon}
@@ -123,11 +120,11 @@ export const Button = (props) => {
     );
   }
 
-  // Secondary variant: white/10 bg with border (SCAN SYSTEM style)
+  // Secondary variant: white/10 bg (SCAN SYSTEM style)
   if (variant() === 'secondary') {
     return (
       <button
-        class={`${local.fullWidth ? 'w-full' : ''} bg-white/10 border border-white/30 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${local.class || ''}`}
+        class={`${local.fullWidth ? 'w-full' : ''} bg-white/10 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${local.class || ''}`}
         onClick={local.disabled ? undefined : local.onClick}
         disabled={local.disabled}
         {...others}
@@ -159,7 +156,6 @@ export const Button = (props) => {
       class={`glass-button ${local.disabled ? 'opacity-30 cursor-not-allowed' : ''} ${local.class || ''}`}
       style={{
         background: 'rgba(255, 255, 255, 0.05)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
         padding: '8px 16px',
         'font-size': '11px',
         'font-weight': '500',

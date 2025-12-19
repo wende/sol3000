@@ -44,7 +44,7 @@ export const DestinationSelector = (props) => {
         {({ system: dest, hops }) => (
           <button
             onClick={() => props.onSelect(dest.id)}
-            class="w-full p-4 border border-white/20 hover:border-green-500/50 hover:bg-green-500/10 rounded transition-all text-left"
+            class="w-full p-4 hover:bg-green-500/10 rounded transition-all text-left"
           >
             <div class="flex items-center justify-between">
               <div>

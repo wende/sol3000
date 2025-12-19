@@ -192,3 +192,4 @@ Technical decision records and implementation notes live in `docs/` with the fol
 - `005-tether-gradient-fade-issues.md` - Technical challenges and solutions
 
 These docs capture decisions, debugging findings, and architectural rationale that don't fit in code comments.
+- Tests are never 'unrelated' to changes. Whenever we start we start with a full passing suite. New errors means we need to fix them

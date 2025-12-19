@@ -17,10 +17,9 @@ export const COLORS = {
  * "dynamically cold" (multiple planets, circular orbits) or "dynamically hot"
  * (few planets, eccentric orbits from planet-planet scattering).
  *
+ * Visual properties (hue, saturation, lightness) are handled by Star.jsx component.
+ *
  * @type {Record<string, {
- *   hue: [number, number],
- *   saturation: [number, number],
- *   lightness: [number, number],
  *   size: [number, number],
  *   weight: number,
  *   prefix: string,
@@ -34,9 +33,6 @@ export const COLORS = {
  */
 export const SPECTRAL_CLASSES = {
   O: {
-    hue: [220, 240],      // Deep blue - hottest
-    saturation: [20, 35],
-    lightness: [85, 95],
     size: [10, 14],       // Largest stars
     weight: 0.01,         // Extremely rare
     prefix: 'Rigel',
@@ -48,9 +44,6 @@ export const SPECTRAL_CLASSES = {
     description: 'Massive, luminous blue giants. Short-lived and violent.'
   },
   B: {
-    hue: [200, 225],      // Blue-white
-    saturation: [18, 30],
-    lightness: [88, 96],
     size: [9, 12],
     weight: 0.03,
     prefix: 'Spica',
@@ -62,9 +55,6 @@ export const SPECTRAL_CLASSES = {
     description: 'Hot blue-white stars with chaotic planetary systems.'
   },
   A: {
-    hue: [190, 210],      // White with blue tint
-    saturation: [12, 22],
-    lightness: [90, 97],
     size: [7, 10],
     weight: 0.06,
     prefix: 'Vega',
@@ -76,9 +66,6 @@ export const SPECTRAL_CLASSES = {
     description: 'Bright white stars. Debris disks common.'
   },
   F: {
-    hue: [45, 60],        // Yellow-white
-    saturation: [15, 28],
-    lightness: [88, 95],
     size: [6, 9],
     weight: 0.12,
     prefix: 'Procyon',
@@ -90,9 +77,6 @@ export const SPECTRAL_CLASSES = {
     description: 'Stable yellow-white stars with orderly systems.'
   },
   G: {
-    hue: [38, 52],        // Yellow (Sol-like)
-    saturation: [20, 35],
-    lightness: [85, 93],
     size: [5, 8],
     weight: 0.18,         // Sol-like - dynamically cold
     prefix: 'Sol',
@@ -104,9 +88,6 @@ export const SPECTRAL_CLASSES = {
     description: 'Sol-like stars. Dynamically cold with stable orbits.'
   },
   K: {
-    hue: [22, 38],        // Orange
-    saturation: [22, 38],
-    lightness: [82, 92],
     size: [4, 7],
     weight: 0.25,
     prefix: 'Epsilon',
@@ -118,9 +99,6 @@ export const SPECTRAL_CLASSES = {
     description: 'Long-lived orange dwarfs. Excellent for habitability.'
   },
   M: {
-    hue: [0, 22],         // Red-orange (most common)
-    saturation: [25, 40],
-    lightness: [78, 90],
     size: [3, 6],
     weight: 0.35,         // Red dwarfs - most common
     prefix: 'Proxima',
@@ -145,21 +123,6 @@ function selectSpectralClass() {
     if (roll < cumulative) return cls;
   }
   return 'M'; // Fallback to most common
-}
-
-/**
- * Generates a star color based on its spectral class.
- * Uses HSL with faint saturation to maintain the black-and-white aesthetic.
- * @param {string} spectralClass - The star's spectral classification
- * @param {number} brightness - Brightness factor (0.6 to 1.0)
- * @returns {string} HSL color string
- */
-function generateStarColor(spectralClass, brightness = 1) {
-  const cls = SPECTRAL_CLASSES[spectralClass];
-  const hue = cls.hue[0] + Math.random() * (cls.hue[1] - cls.hue[0]);
-  const saturation = cls.saturation[0] + Math.random() * (cls.saturation[1] - cls.saturation[0]);
-  const lightness = cls.lightness[0] + (brightness - 0.6) * (cls.lightness[1] - cls.lightness[0]) / 0.4;
-  return `hsl(${Math.floor(hue)}, ${Math.floor(saturation)}%, ${Math.floor(lightness)}%)`;
 }
 
 /**
@@ -307,7 +270,6 @@ function generateMetalsMarket(resources) {
  *     x: number,
  *     y: number,
  *     size: number,
- *     color: string,
  *     spectralClass: string,
  *     planetCount: number,
  *     planets: Array,
@@ -345,7 +307,7 @@ export function generateGalaxy() {
     const y = CENTER_Y + Math.sin(angle) * dist;
 
     // Reject overlaps (simple distance check against existing)
-    const tooClose = systems.some(s => Math.hypot(s.x - x, s.y - y) < 40);
+    const tooClose = systems.some(s => Math.hypot(s.x - x, s.y - y) < 60);
     if (tooClose) continue;
 
     // Determine spectral class based on weighted distribution
@@ -360,9 +322,6 @@ export function generateGalaxy() {
     const planetRange = cls.planetRange;
     const planetCount = Math.floor(planetRange[0] + Math.random() * (planetRange[1] - planetRange[0] + 1));
 
-    // Brightness based on size within class range
-    const brightness = 0.6 + ((radius - sizeRange[0]) / (sizeRange[1] - sizeRange[0])) * 0.4;
-
     const planets = generatePlanets(planetCount, spectralClass, cls.eccentricity);
     const resources = Math.random() > 0.7 ? 'Rich' : Math.random() > 0.3 ? 'Normal' : 'Poor';
     const owner = Math.random() > 0.9 ? 'Enemy' : 'Unclaimed';
@@ -373,7 +332,6 @@ export function generateGalaxy() {
       x: x,
       y: y,
       size: Math.round(radius),
-      color: generateStarColor(spectralClass, brightness),
       spectralClass,
       planetCount,
       planets,
@@ -402,7 +360,8 @@ export function generateGalaxy() {
     others.forEach(other => {
       // Connect if within reasonable range (don't cross the black hole unnecessarily)
       if (other.dist < 400) {
-        const key = [i, other.idx].sort().join('-');
+        // Use system IDs (not array indices) for stable route IDs across save/load
+        const key = [sys.id, systems[other.idx].id].sort((a, b) => a - b).join('-');
         if (!connections.has(key)) {
           connections.add(key);
           routes.push({

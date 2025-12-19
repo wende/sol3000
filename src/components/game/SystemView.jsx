@@ -1,7 +1,7 @@
 import { createSignal } from 'solid-js';
 import { Button } from '../common/Button';
 import { GlassPanel } from '../common/GlassPanel';
-import { Star } from './Star';
+import { Star, getStarColor } from './Star';
 import { SPECTRAL_CLASSES } from '../../utils/galaxy';
 
 /**
@@ -15,6 +15,7 @@ export const SystemView = (props) => {
   if (!system()) return null;
 
   const spectralData = SPECTRAL_CLASSES[system().spectralClass];
+  const starColor = () => getStarColor(system().spectralClass, system().id, system().size);
 
   return (
     <div class="w-full h-full bg-black flex overflow-hidden">
@@ -27,8 +28,8 @@ export const SystemView = (props) => {
           <div>
              <h1 class="text-3xl font-light text-white tracking-[0.2em] uppercase leading-tight">{system().name}</h1>
              <div class="flex flex-wrap gap-2 mt-4 text-xs text-gray-400 font-mono uppercase tracking-wider">
-                <span class="px-2 py-1 rounded bg-white/5 border border-white/10">{spectralData.label} Class</span>
-                <span class="px-2 py-1 rounded bg-white/5 border border-white/10">{system().planetCount} Planets</span>
+                <span class="px-2 py-1 rounded bg-white/5">{spectralData.label} Class</span>
+                <span class="px-2 py-1 rounded bg-white/5">{system().planetCount} Planets</span>
              </div>
           </div>
 
@@ -39,7 +40,7 @@ export const SystemView = (props) => {
                 {system().description}
              </p>
              
-             <div class="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+             <div class="grid grid-cols-2 gap-4 pt-4">
                 <div>
                    <div class="text-[10px] text-gray-500 tracking-widest mb-1">RESOURCES</div>
                    <div class="text-sm text-white font-mono">{system().resources}</div>
@@ -95,7 +96,9 @@ export const SystemView = (props) => {
                     </filter>
                     <linearGradient id="orbit-fade" x1="0%" y1="0%" x2="0%" y2="100%">
                        <stop offset="0%" stop-color="white" stop-opacity="0" />
-                       <stop offset="50%" stop-color="white" stop-opacity="0.3" />
+                       <stop offset="20%" stop-color="white" stop-opacity="0.15" />
+                       <stop offset="50%" stop-color="white" stop-opacity="0.35" />
+                       <stop offset="80%" stop-color="white" stop-opacity="0.15" />
                        <stop offset="100%" stop-color="white" stop-opacity="0" />
                     </linearGradient>
                  </defs>
@@ -103,9 +106,9 @@ export const SystemView = (props) => {
                  {/* Central Star - Offset to show full body */}
                  <g transform="translate(240, 300)">
                     {/* Outer Corona */}
-                    <circle cx="0" cy="0" r={system().size * 14} fill={system().color} opacity="0.1" filter="url(#star-glow)" />
+                    <circle cx="0" cy="0" r={system().size * 14} fill={starColor()} opacity="0.1" filter="url(#star-glow)" />
                     {/* Main Body */}
-                    <circle cx="0" cy="0" r={system().size * 10} fill={system().color} filter="url(#star-glow)" />
+                    <circle cx="0" cy="0" r={system().size * 10} fill={starColor()} filter="url(#star-glow)" />
                     {/* Inner Brightness */}
                     <circle cx="0" cy="0" r={system().size * 8} fill="white" opacity="0.2" />
                  </g>
@@ -118,8 +121,8 @@ export const SystemView = (props) => {
                     const spacing = 120;
                     const orbitRadius = starRadius + 120 + (i * spacing);
                     
-                    // Angle span: +/- 12 degrees
-                    const angle = 12;
+                    // Angle span: +/- 35 degrees
+                    const angle = 35;
                     const startAngle = -angle * (Math.PI / 180);
                     const endAngle = angle * (Math.PI / 180);
                     

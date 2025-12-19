@@ -1,10 +1,12 @@
 import { createSignal, createEffect, onCleanup, Show, For } from 'solid-js';
 import { X, Crosshair, Shield, Rocket, Link } from 'lucide-solid';
 import { GlassPanel } from '../common/GlassPanel';
+import { ProgressBar } from '../common/ProgressBar';
 import { BuildingList } from './BuildingList';
 import { SystemStatsGrid } from './SystemStatsGrid';
 import { ConstructionQueueItem } from './ConstructionQueueItem';
 import { DestinationSelector } from './DestinationSelector';
+import { getScanInfo, SCAN_COST } from '../../operations/scan';
 
 /**
  * @typedef {Object} SidebarProps
@@ -12,6 +14,7 @@ import { DestinationSelector } from './DestinationSelector';
  * @property {Object|null} tether - The selected tether { id, source, target, distance }
  * @property {Function} onClose - Callback to close the sidebar
  * @property {Object} gameState - The game state object
+ * @property {Object} tradeFlows - Trade flow data { systemSatisfaction, routeThroughput }
  */
 
 /**
@@ -84,7 +87,7 @@ export const Sidebar = (props) => {
         }}
       >
         {/* Header Image / Placeholder */}
-        <div class="h-48 w-full bg-gradient-to-b from-white/10 to-transparent relative border-b border-white/10">
+        <div class="h-48 w-full bg-gradient-to-b from-white/10 to-transparent relative">
           <div class="absolute top-4 right-4 z-10">
             <button
               id="sidebar-close-btn"
@@ -131,40 +134,54 @@ export const Sidebar = (props) => {
           <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
 
             <Show when={view() === 'overview'}>
-              {/* Stats Grid */}
+              {/* Stats Grid - Hidden for now
               <SystemStatsGrid
                 population={props.system.population}
                 resources={props.system.resources}
               />
+              */}
 
               {/* Market */}
               <Show when={props.system.market?.metals && (props.system.market.metals.supply > 0 || props.system.market.metals.demand > 0)}>
-                <div class="pb-6 border-b border-white/10">
-                  <span class="text-[10px] text-gray-500 tracking-widest block mb-3">METALS MARKET</span>
-                  <div class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-sm">
-                    <div class="flex flex-col">
-                      <span class="text-xs text-gray-400 tracking-widest">ROLE</span>
-                      <span class="text-sm text-white">
-                        {props.system.market.metals.supply > 0 ? 'SUPPLY' : 'DEMAND'}
-                      </span>
+                {(() => {
+                  const isSupply = props.system.market.metals.supply > 0;
+                  const total = isSupply ? props.system.market.metals.supply : props.system.market.metals.demand;
+                  const satisfaction = props.tradeFlows?.systemSatisfaction?.get(props.system.id);
+                  const flowAmount = satisfaction
+                    ? (isSupply ? Math.round(satisfaction.used || 0) : Math.round(satisfaction.satisfied || 0))
+                    : 0;
+
+                  return (
+                    <div class="pb-6">
+                      <span class="text-[10px] text-gray-500 tracking-widest block mb-3">METALS MARKET</span>
+                      <div class="flex items-center justify-between p-3 rounded-sm">
+                        <div class="flex flex-col">
+                          <span class="text-xs text-gray-400 tracking-widest">ROLE</span>
+                          <span class="text-sm text-white">
+                            {isSupply ? 'SUPPLY' : 'DEMAND'}
+                          </span>
+                        </div>
+                        <div class="text-right">
+                          <span class="text-xs text-gray-400 tracking-widest block">
+                            {isSupply ? 'EXPORTED' : 'SATISFIED'}
+                          </span>
+                          <span class="text-lg text-white">
+                            {flowAmount}/{total}
+                          </span>
+                        </div>
+                      </div>
+                      <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                        {isSupply
+                          ? 'Supply exports Metals to connected demand systems.'
+                          : 'Demand pays more when unmet and less when satisfied.'}
+                      </p>
                     </div>
-                    <div class="text-right">
-                      <span class="text-xs text-gray-400 tracking-widest block">
-                        {props.system.market.metals.supply > 0 ? 'SUPPLY' : 'DEMAND'}
-                      </span>
-                      <span class="text-lg text-white">
-                        {props.system.market.metals.supply > 0 ? props.system.market.metals.supply : props.system.market.metals.demand}
-                      </span>
-                    </div>
-                  </div>
-                  <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
-                    Supply exports Metals. Demand pays more when unmet and less when satisfied.
-                  </p>
-                </div>
+                  );
+                })()}
               </Show>
 
               {/* Ownership */}
-              <div class="pb-6 border-b border-white/10">
+              <div class="pb-6">
                 <span class="text-[10px] text-gray-500 tracking-widest block mb-3">SYSTEM CONTROL</span>
                 <div class="flex items-center justify-between">
                   <div class="flex items-center space-x-3">
@@ -199,7 +216,7 @@ export const Sidebar = (props) => {
 
               {/* Construction Queue Status */}
               <Show when={props.system.owner === 'Player' && props.system.constructionQueue?.length > 0}>
-                <div class="pb-6 border-b border-white/10">
+                <div class="pb-6">
                   <span class="text-[10px] text-gray-500 tracking-widest block mb-3">CONSTRUCTION</span>
                   <For each={props.system.constructionQueue}>
                     {(item, index) => (
@@ -215,11 +232,11 @@ export const Sidebar = (props) => {
 
               {/* Docked Ships */}
               <Show when={props.system.owner === 'Player' && dockedShipsHere().length > 0}>
-                <div class="pb-6 border-b border-white/10">
+                <div class="pb-6">
                   <span class="text-[10px] text-gray-500 tracking-widest block mb-3">DOCKED SHIPS</span>
-                  <div class="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded">
+                  <div class="flex items-center justify-between p-3 bg-white/5 rounded">
                     <div class="flex items-center gap-2">
-                      <Rocket size={16} class="text-green-400" />
+                      <Rocket size={16} class="text-white" />
                       <span class="text-sm">{dockedShipsHere().length} Colony Ship(s)</span>
                     </div>
                     <button
@@ -232,13 +249,14 @@ export const Sidebar = (props) => {
                 </div>
               </Show>
 
-              {/* Description */}
+              {/* Description - Hidden for now
               <div>
                 <span class="text-[10px] text-gray-500 tracking-widest block mb-3">DATA LOG</span>
                 <p id="sidebar-desc-text" class="text-sm text-gray-300 leading-relaxed">
                   {props.system.description}
                 </p>
               </div>
+              */}
 
               {/* Actions */}
               <Show when={props.system.owner === 'Player'}>
@@ -254,20 +272,54 @@ export const Sidebar = (props) => {
               </Show>
 
               <Show when={props.system.owner === 'Unclaimed'}>
-                <div class="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded">
-                  <p class="text-xs text-yellow-300">
-                    This system is unclaimed. Send a Colony Ship to colonize it.
-                  </p>
-                </div>
                 <div class="space-y-3 pt-4">
-                  <button
-                    id="sidebar-scan-btn"
-                    class="w-full bg-white/10 border border-white/30 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => props.gameState.scanSystem(props.system.id)}
-                    disabled={props.gameState.resources().credits < 50}
-                  >
-                    SCAN SYSTEM (50 CR)
-                  </button>
+                  {/* Show scan progress if scanning this system */}
+                  <Show when={props.gameState.scanningSystem()?.systemId === props.system.id}>
+                    {(() => {
+                      const scan = props.gameState.scanningSystem();
+                      const elapsed = now() - scan.startTime;
+                      const progress = Math.min(100, (elapsed / scan.duration) * 100);
+                      const remaining = Math.max(0, Math.ceil((scan.duration - elapsed) / 1000));
+                      return (
+                        <div class="space-y-2">
+                          <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500 tracking-widest">SCANNING</span>
+                            <span class="text-[10px] text-gray-500">{remaining}s</span>
+                          </div>
+                          <ProgressBar progress={progress} variant="glass" />
+                          <button
+                            class="w-full bg-red-500/20 text-red-300 py-2 text-xs tracking-[0.2em] font-bold hover:bg-red-500/30 transition-colors"
+                            onClick={() => props.gameState.cancelScan()}
+                          >
+                            CANCEL SCAN
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </Show>
+                  {/* Show scan button if not scanning this system */}
+                  <Show when={props.gameState.scanningSystem()?.systemId !== props.system.id}>
+                    {(() => {
+                      const scanInfo = getScanInfo(
+                        props.gameState.galaxyData(),
+                        props.gameState.homeSystemId(),
+                        props.system.id,
+                        props.gameState.findPath
+                      );
+                      return (
+                        <button
+                          id="sidebar-scan-btn"
+                          class="w-full bg-white/10 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => props.gameState.scanSystem(props.system.id)}
+                          disabled={props.gameState.resources().credits < SCAN_COST || props.gameState.scanningSystem()}
+                        >
+                          {props.gameState.scanningSystem()
+                            ? 'SCAN IN PROGRESS...'
+                            : `SCAN SYSTEM (${scanInfo.cost} CR, ${scanInfo.durationSeconds}s)`}
+                        </button>
+                      );
+                    })()}
+                  </Show>
                 </div>
               </Show>
             </Show>
@@ -290,14 +342,14 @@ export const Sidebar = (props) => {
         <Show when={props.tether}>
           <div class="p-8 space-y-8 font-mono overflow-y-auto h-[calc(100%-12rem)]">
             {/* Tether Stats */}
-            <div class="pb-6 border-b border-white/10">
+            <div class="pb-6">
               <span class="text-[10px] text-gray-500 tracking-widest block mb-3">FTL ROUTE INFO</span>
               <div class="grid grid-cols-2 gap-4">
-                <div class="p-4 bg-white/5 rounded border border-white/10">
+                <div class="p-4 bg-white/5 rounded">
                   <span class="text-[10px] text-gray-500 tracking-widest block mb-1">DISTANCE</span>
                   <span class="text-xl font-light">{props.tether.distance} LY</span>
                 </div>
-                <div class="p-4 bg-white/5 rounded border border-white/10">
+                <div class="p-4 bg-white/5 rounded">
                   <span class="text-[10px] text-gray-500 tracking-widest block mb-1">TRAVEL TIME</span>
                   <span class="text-xl font-light">6s</span>
                 </div>
@@ -305,10 +357,10 @@ export const Sidebar = (props) => {
             </div>
 
             {/* Connected Systems */}
-            <div class="pb-6 border-b border-white/10">
+            <div class="pb-6">
               <span class="text-[10px] text-gray-500 tracking-widest block mb-3">CONNECTED SYSTEMS</span>
               <div class="space-y-3">
-                <div class="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between">
+                <div class="p-4 bg-white/5 rounded flex items-center justify-between">
                   <div>
                     <span class="text-[10px] text-gray-500 tracking-widest block mb-1">FROM</span>
                     <span class="text-lg font-light">{props.tether.source.name}</span>
@@ -318,7 +370,7 @@ export const Sidebar = (props) => {
                     class={props.tether.source.owner === 'Player' ? 'text-white' : props.tether.source.owner === 'Enemy' ? 'text-red-400' : 'text-gray-400'}
                   />
                 </div>
-                <div class="p-4 bg-white/5 rounded border border-white/10 flex items-center justify-between">
+                <div class="p-4 bg-white/5 rounded flex items-center justify-between">
                   <div>
                     <span class="text-[10px] text-gray-500 tracking-widest block mb-1">TO</span>
                     <span class="text-lg font-light">{props.tether.target.name}</span>
@@ -345,7 +397,7 @@ export const Sidebar = (props) => {
               <Show
                 when={!props.gameState.builtFTLs().has(props.tether.id)}
                 fallback={
-                  <div class="p-4 bg-green-500/10 border border-green-500/30 rounded">
+                  <div class="p-4 bg-green-500/10 rounded">
                     <p class="text-xs text-green-300 text-center">FTL ROUTE ESTABLISHED</p>
                   </div>
                 }

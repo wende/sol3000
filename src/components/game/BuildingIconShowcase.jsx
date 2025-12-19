@@ -13,19 +13,19 @@ export const BuildingIconShowcase = () => {
   ];
 
   return (
-    <GlassPanel class="p-8 max-w-2xl mx-auto my-10">
-      <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
+    <GlassPanel class="p-8 my-10">
+      <h2 class="text-xl font-light tracking-widest text-white mb-6 pb-4">
         BUILDING ICON SYSTEM
       </h2>
-      
+
       <div class="space-y-4">
         <For each={buildings}>
           {(b) => (
-            <div class="flex items-center gap-6 p-4 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+            <div class="flex items-center gap-6 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
               <div class="flex-grow">
                 <div class="flex items-center gap-3">
                   <span class="text-sm font-bold tracking-wider text-white uppercase">{b.label}</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
                     {b.type}
                   </span>
                 </div>

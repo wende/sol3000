@@ -12,6 +12,7 @@ import { StarSystem } from './StarSystem';
  * @property {Array} data.routes - Array of routes
  * @property {Function} onSystemSelect - Callback when a system is selected
  * @property {Function} onTetherSelect - Callback when a tether/route is selected
+ * @property {Function} onBackgroundClick - Callback when clicking on empty space
  * @property {number|null} selectedSystemId - ID of the currently selected system
  * @property {string|null} selectedTetherId - ID of the currently selected tether
  * @property {Set} builtFTLs - Set of tether IDs that have been upgraded to FTL
@@ -22,6 +23,7 @@ import { StarSystem } from './StarSystem';
  * @property {Array} ships - Array of ships (docked and in transit)
  * @property {Object} visibleSystems - Fog of war visibility data { visibleIds, farthestSystem }
  * @property {Set} newlyRevealedIds - Set of system IDs that just became visible (for fade-in)
+ * @property {Object} tradeFlows - Trade flow data { systemSatisfaction, routeThroughput }
  */
 
 /**
@@ -70,7 +72,7 @@ export const GalaxyMap = (props) => {
     if (!svgRef || !zoomBehavior) return;
 
     const svg = d3.select(svgRef);
-    const targetScale = 1.5; // Fixed zoom level
+    const targetScale = 8.0; // Zoom in aggressively for transition
 
     // Calculate center of viewport
     const centerX = window.innerWidth / 2;
@@ -135,13 +137,13 @@ export const GalaxyMap = (props) => {
 
     if (isDoubleClick) {
       // Double-click: center and zoom on the system
-      centerOnSystem(sys);
-      
+      centerOnSystem(sys, 1200);
+
       // Transition to System View after zoom
       if (props.onSystemDoubleSelect) {
         setTimeout(() => {
            props.onSystemDoubleSelect(sys.id);
-        }, 800);
+        }, 1200);
       }
     }
 
@@ -150,6 +152,15 @@ export const GalaxyMap = (props) => {
 
     lastClickTime = now;
     lastClickId = sys.id;
+  };
+
+  // Handle background click to deselect
+  const handleBackgroundClick = (e) => {
+    // Since systems and tethers call stopPropagation, any click that reaches here
+    // is a click on empty space
+    if (props.onBackgroundClick) {
+      props.onBackgroundClick();
+    }
   };
 
   // Filter systems based on fog of war visibility
@@ -199,6 +210,50 @@ export const GalaxyMap = (props) => {
   const isRouteNewlyRevealed = (route) => {
     return isNewlyRevealed(route.source.id) || isNewlyRevealed(route.target.id);
   };
+
+  const hasMetalsSupply = (system) => (system?.market?.metals?.supply || 0) > 0;
+  const hasMetalsDemand = (system) => (system?.market?.metals?.demand || 0) > 0;
+
+  // Debug: Log route states when they change
+  createEffect(() => {
+    const galaxy = props.data;
+    const builtFTLSet = props.builtFTLs;
+
+    if (galaxy.routes.length > 0 && builtFTLSet?.size > 0) {
+      const allBuiltRoutes = galaxy.routes.filter(route => {
+        return builtFTLSet.has(route.id);
+      });
+
+      const tradeRoutes = allBuiltRoutes.filter(route => {
+        const connectsMetalsSupplyDemand =
+          (hasMetalsSupply(route.source) && hasMetalsDemand(route.target)) ||
+          (hasMetalsDemand(route.source) && hasMetalsSupply(route.target));
+        return connectsMetalsSupplyDemand;
+      });
+
+      const regularBuiltRoutes = allBuiltRoutes.length - tradeRoutes.length;
+
+      console.log(`📊 Built FTL Routes: ${allBuiltRoutes.length} total (${tradeRoutes.length} trade, ${regularBuiltRoutes} regular)`);
+
+      if (regularBuiltRoutes > 0) {
+        console.log(`⚪ Regular built routes (should be SOLID):`);
+        allBuiltRoutes.filter(r => !tradeRoutes.includes(r)).forEach(route => {
+          console.log(`  ${route.id}: ${route.source.name} ↔ ${route.target.name}`);
+        });
+      }
+
+      if (tradeRoutes.length > 0) {
+        console.log(`🔵 Trade routes (should have ANIMATED flow):`);
+        tradeRoutes.forEach(route => {
+          const sourceSupply = route.source.market?.metals?.supply || 0;
+          const sourceDemand = route.source.market?.metals?.demand || 0;
+          const targetSupply = route.target.market?.metals?.supply || 0;
+          const targetDemand = route.target.market?.metals?.demand || 0;
+          console.log(`  ${route.id}: ${route.source.name} (S:${sourceSupply} D:${sourceDemand}) ↔ ${route.target.name} (S:${targetSupply} D:${targetDemand})`);
+        });
+      }
+    }
+  });
 
   // Get tether routes from 2-hop systems to unseen 3-hop systems
   const tetherRoutes = createMemo(() => {
@@ -263,6 +318,7 @@ export const GalaxyMap = (props) => {
       ref={svgRef}
       class="w-full h-full cursor-grab active:cursor-grabbing galaxy-map-svg"
       style={{ background: 'transparent' }}
+      onClick={handleBackgroundClick}
     >
       <defs>
         {/* Accretion Disk Gradient - Orange/Gold to Black */}
@@ -307,7 +363,14 @@ export const GalaxyMap = (props) => {
         <Show when={props.zoomLevel >= 0.25}>
           <For each={visibleRoutesFiltered()}>
             {(route) => {
-              const routeId = `${route.source.id}-${route.target.id}`;
+              // Use the route's existing ID (which is sorted: smaller-id-first)
+              const routeId = route.id;
+
+              const connectsMetalsSupplyDemand =
+                (hasMetalsSupply(route.source) && hasMetalsDemand(route.target)) ||
+                (hasMetalsDemand(route.source) && hasMetalsSupply(route.target));
+              const tradeReverse = hasMetalsDemand(route.source) && hasMetalsSupply(route.target);
+
               return (
                 <FTLRoute
                   route={route}
@@ -316,8 +379,11 @@ export const GalaxyMap = (props) => {
                   shouldFade={props.fogTransitioning && !isRouteVisible(route)}
                   shouldFadeIn={isRouteNewlyRevealed(route)}
                   isSelected={props.selectedTetherId === routeId}
-                  isBuilt={props.builtFTLs?.has(routeId)}
+                  builtFTLs={props.builtFTLs}
+                  connectsMetalsSupplyDemand={connectsMetalsSupplyDemand}
+                  tradeReverse={tradeReverse}
                   onSelect={props.onTetherSelect}
+                  throughput={props.tradeFlows?.routeThroughput?.get(routeId)}
                 />
               );
             }}
@@ -396,6 +462,7 @@ export const GalaxyMap = (props) => {
               shouldFadeIn={isNewlyRevealed(sys.id)}
               zoomLevel={props.zoomLevel}
               onClick={(e) => handleSystemClick(e, sys)}
+              satisfaction={props.tradeFlows?.systemSatisfaction?.get(sys.id)}
             />
           )}
         </For>

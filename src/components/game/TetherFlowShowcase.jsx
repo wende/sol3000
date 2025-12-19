@@ -1,110 +1,23 @@
-import { onCleanup, onMount } from 'solid-js';
 import { GlassPanel } from '../common/GlassPanel';
 
 /**
- * Showcase component for the FTL Tether particle flow animation.
- * Optimized using HTML5 Canvas for high performance.
+ * Showcase component for the FTL Tether flow animation.
+ * Uses CSS-based dash animation with enhanced glow effect.
+ * Route length matches typical FTL distances (~180px).
  */
 export const TetherFlowShowcase = () => {
-  let canvasRef;
-  
-  // Tether coordinates
-  const start = { x: 50, y: 100 };
-  const end = { x: 550, y: 100 };
-  
-  onMount(() => {
-    const canvas = canvasRef;
-    const ctx = canvas.getContext('2d');
-    
-    // Handle High DPI displays
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    
-    // Particle System State
-    const particleCount = 40; // Increased count for smoother stream
-    const particles = [];
-    
-    // Initialize particles
-    for (let i = 0; i < particleCount; i++) {
-      particles.push(createParticle());
-    }
-    
-    function createParticle(reset = false) {
-      // Speed: 4-6s duration to cross 500px -> ~80-120px/s
-      // Frame time ~16ms. 120 * 0.016 = ~2px per frame.
-      // t is 0-1. 2px / 500px = 0.004 per frame.
-      const speed = 0.002 + Math.random() * 0.002; 
-      
-      return {
-        t: reset ? 0 : Math.random(), // Start at random position or 0 if respawning
-        speed: speed,
-        size: 2 + Math.random() * 2,
-        // Dual lane: +/- 6 to 10px
-        offset: (Math.random() > 0.5 ? 1 : -1) * (6 + Math.random() * 4),
-        opacity: 0.4 + Math.random() * 0.4,
-        flickerOffset: Math.random() * 100 // For opacity variance
-      };
-    }
-    
-    let animationFrameId;
-    
-    const animate = () => {
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      
-      // Calculate current vector for the tether
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      
-      particles.forEach(p => {
-        // Update position
-        p.t += p.speed;
-        
-        // Reset if reached end
-        if (p.t > 1) {
-          Object.assign(p, createParticle(true));
-        }
-        
-        // Calculate current position
-        const x = start.x + dx * p.t;
-        const y = start.y + dy * p.t + p.offset;
-        
-        // Fade in/out at ends
-        let alpha = p.opacity;
-        if (p.t < 0.1) alpha *= p.t * 10;
-        if (p.t > 0.9) alpha *= (1 - p.t) * 10;
-        
-        // Subtle flicker
-        // alpha *= 0.8 + 0.2 * Math.sin(Date.now() * 0.01 + p.flickerOffset);
-        
-        // Draw particle
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        
-        // Crisp square pixels
-        ctx.fillRect(Math.floor(x), Math.floor(y), p.size, p.size);
-      });
-      
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    
-    animate();
-    
-    onCleanup(() => {
-      cancelAnimationFrame(animationFrameId);
-    });
-  });
+  // Tether coordinates (realistic FTL route length ~180px)
+  const start = { x: 150, y: 100 };
+  const end = { x: 330, y: 100 };
 
   return (
-    <GlassPanel class="p-8 max-w-4xl mx-auto my-10">
-      <h2 class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4">
-        TETHER FLOW ANIMATION
+    <GlassPanel class="p-8 my-10">
+      <h2 class="text-xl font-light tracking-widest text-white mb-6 pb-4">
+        TRADE TETHER FLOW ANIMATION
       </h2>
-      
-      <div class="relative h-48 bg-[#0a0a0a] rounded border border-white/10 overflow-hidden">
-        {/* SVG Layer: Static Elements (Systems & Tether Line) */}
+
+      <div class="relative h-48 bg-[#0a0a0a] rounded overflow-hidden">
+        {/* SVG Layer: Tether with CSS animation */}
         <svg width="100%" height="100%" class="absolute inset-0 z-0">
           <defs>
             <filter id="glow-static" x="-50%" y="-50%" width="200%" height="200%">
@@ -117,42 +30,52 @@ export const TetherFlowShowcase = () => {
           </defs>
 
           {/* Base Tether Line (Connected State) */}
-          <path
-            d={`M${start.x},${start.y} L${end.x},${end.y}`}
-            stroke="rgba(255, 255, 255, 0.6)"
-            stroke-width="2"
-            fill="none"
+          <line
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+            class="ftl-line-trade-base"
           />
 
-          {/* Source System */}
+          {/* Flow Overlay (Animated Dashes) */}
+          <line
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+            class="ftl-line-trade-flow"
+          />
+
+          {/* Source System (M+ Supply) */}
           <g transform={`translate(${start.x}, ${start.y})`}>
             <circle r="6" fill="#000" stroke="white" stroke-width="1" stroke-opacity="0.5" />
             <circle r="2" fill="white" />
+            <text y="20" text-anchor="middle" fill="white" font-size="10">M+</text>
           </g>
 
-          {/* Target System */}
+          {/* Target System (M- Demand) */}
           <g transform={`translate(${end.x}, ${end.y})`}>
             <circle r="6" fill="#000" stroke="white" stroke-width="1" stroke-opacity="0.5" />
             <circle r="2" fill="white" />
+            <text y="20" text-anchor="middle" fill="white" font-size="10">M-</text>
           </g>
         </svg>
-        
-        {/* Canvas Layer: Dynamic Particle System */}
-        <canvas 
-          ref={canvasRef}
-          class="absolute inset-0 z-10 w-full h-full pointer-events-none"
-        />
 
         {/* Overlay Text */}
         <div class="absolute bottom-4 left-4 text-[10px] text-gray-500 font-mono tracking-[0.3em] uppercase z-20">
-          Tether_Link_Status: Active // Data_Stream_Throughput: High
+          Trade_Route_Status: Active // Metals_Flow: Supply → Demand
         </div>
       </div>
 
       <div class="mt-4 grid grid-cols-3 gap-4 text-[10px] text-gray-500 font-mono">
-        <div>TYPE: CANVAS_PARTICLE_SYSTEM</div>
-        <div>RENDER: 60FPS_RAF_LOOP</div>
-        <div>COUNT: 40_ENTITIES</div>
+        <div>TYPE: CSS_DASH_ANIMATION</div>
+        <div>SPEED: 2.5s_LOOP</div>
+        <div>STYLE: HARDWARE_ACCELERATED</div>
+      </div>
+
+      <div class="mt-4 p-4 bg-white/5 rounded text-xs text-gray-400 leading-relaxed">
+        <strong class="text-white">How it works:</strong> When an FTL route connects a Metals Supply (M+) system to a Metals Demand (M-) system, it becomes a "trade tether" with animated flow particles. The base line is solid white, with fast-moving glowing dashes on top to show the direction of trade.
       </div>
     </GlassPanel>
   );

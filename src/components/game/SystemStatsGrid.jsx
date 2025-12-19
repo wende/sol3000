@@ -18,11 +18,11 @@ export const SystemStatsGrid = (props) => {
 
   return (
     <div class="grid grid-cols-2 gap-4">
-      <div class="p-4 bg-white/5 border border-white/10 rounded-sm">
+      <div class="p-4 bg-white/5 rounded-sm">
         <span class="text-[10px] text-gray-400 tracking-widest block mb-1">POPULATION</span>
         <span id="sidebar-pop-value" class="text-xl text-white">{props.population}</span>
       </div>
-      <div class="p-4 bg-white/5 border border-white/10 rounded-sm">
+      <div class="p-4 bg-white/5 rounded-sm">
         <span class="text-[10px] text-gray-400 tracking-widest block mb-1">RESOURCES</span>
         <span id="sidebar-res-value" class={`text-xl ${resourceClass()}`}>
           {props.resources.toUpperCase()}

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Trade Animation Test</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+
+    svg {
+      background: #111;
+      margin: 20px 0;
+    }
+
+    @keyframes tradePulse {
+      to { stroke-dashoffset: -120; }
+    }
+
+    .ftl-line-trade-base {
+      stroke: rgba(255, 255, 255, 0.6);
+      stroke-width: 2px;
+      stroke-dasharray: none;
+    }
+
+    .ftl-line-trade-flow {
+      stroke: rgba(255, 255, 255, 0.75);
+      stroke-width: 3px;
+      stroke-dasharray: 1, 14;
+      stroke-dashoffset: 0;
+      stroke-linecap: square;
+      animation: tradePulse 2.5s linear infinite;
+      will-change: stroke-dashoffset;
+      opacity: 0.75;
+      filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.35));
+    }
+
+    .info {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+    }
+
+    .status {
+      color: #4ade80;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔵 Trade Tether Animation Test</h1>
+
+  <div class="info">
+    <p class="status">✓ Testing the trade tether animation with the updated CSS</p>
+    <p>You should see:</p>
+    <ul>
+      <li>A steady white base line (static)</li>
+      <li>Moving dashes on top (animated, 2.5s loop)</li>
+      <li>The animation should be VERY visible and fast</li>
+    </ul>
+  </div>
+
+  <h2>Test 1: Horizontal Route</h2>
+  <svg width="600" height="100">
+    <!-- Base line -->
+    <line
+      x1="50" y1="50"
+      x2="550" y2="50"
+      class="ftl-line-trade-base"
+    />
+    <!-- Flow overlay -->
+    <line
+      x1="50" y1="50"
+      x2="550" y2="50"
+      class="ftl-line-trade-flow"
+    />
+
+    <!-- Endpoint markers -->
+    <circle cx="50" cy="50" r="8" fill="#fff" />
+    <text x="50" y="75" fill="#fff" text-anchor="middle" font-size="12">Supply (M+)</text>
+
+    <circle cx="550" cy="50" r="8" fill="#fff" />
+    <text x="550" y="75" fill="#fff" text-anchor="middle" font-size="12">Demand (M-)</text>
+  </svg>
+
+  <h2>Test 2: Diagonal Route</h2>
+  <svg width="600" height="300">
+    <!-- Base line -->
+    <line
+      x1="100" y1="50"
+      x2="500" y2="250"
+      class="ftl-line-trade-base"
+    />
+    <!-- Flow overlay -->
+    <line
+      x1="100" y1="50"
+      x2="500" y2="250"
+      class="ftl-line-trade-flow"
+    />
+
+    <!-- Endpoint markers -->
+    <circle cx="100" cy="50" r="8" fill="#fff" />
+    <text x="100" y="30" fill="#fff" text-anchor="middle" font-size="12">Demand (M-)</text>
+
+    <circle cx="500" cy="250" r="8" fill="#fff" />
+    <text x="500" y="270" fill="#fff" text-anchor="middle" font-size="12">Supply (M+)</text>
+  </svg>
+
+  <h2>Test 3: Multiple Routes</h2>
+  <svg width="600" height="300">
+    <!-- Route 1 -->
+    <g>
+      <line x1="100" y1="100" x2="300" y2="100" class="ftl-line-trade-base" />
+      <line x1="100" y1="100" x2="300" y2="100" class="ftl-line-trade-flow" />
+      <circle cx="100" cy="100" r="6" fill="#fff" />
+      <circle cx="300" cy="100" r="6" fill="#fff" />
+    </g>
+
+    <!-- Route 2 -->
+    <g>
+      <line x1="300" y1="100" x2="500" y2="200" class="ftl-line-trade-base" />
+      <line x1="300" y1="100" x2="500" y2="200" class="ftl-line-trade-flow" />
+      <circle cx="500" cy="200" r="6" fill="#fff" />
+    </g>
+
+    <!-- Route 3 -->
+    <g>
+      <line x1="500" y1="200" x2="300" y2="250" class="ftl-line-trade-base" />
+      <line x1="500" y1="200" x2="300" y2="250" class="ftl-line-trade-flow" />
+      <circle cx="300" cy="250" r="6" fill="#fff" />
+    </g>
+  </svg>
+
+  <div class="info">
+    <h3>How to test in the game:</h3>
+    <ol>
+      <li>Reload the page (Cmd+R or F5) to trigger the save migration</li>
+      <li>Look at the browser console for "Migrating save data" message</li>
+      <li>Open the sidebar on different systems to find ones with "METALS MARKET"</li>
+      <li>Look for systems marked as "SUPPLY" (M+) and "DEMAND" (M-)</li>
+      <li>Build FTL routes connecting a supply system to a demand system</li>
+      <li>Watch the console for "🔵 Trade routes active" messages</li>
+      <li>The route should show the animated flow effect!</li>
+    </ol>
+  </div>
+
+  <div class="info" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5);">
+    <h3>⚠️ Troubleshooting</h3>
+    <p><strong>If you don't see the animation in the game:</strong></p>
+    <ul>
+      <li>Check the browser console for "🔵 Trade routes active" - if you don't see this, you haven't built an FTL connecting supply↔demand yet</li>
+      <li>Make sure you've built the FTL (costs 20 credits) - routes must be BUILT, not just visible</li>
+      <li>Check that one endpoint has SUPPLY > 0 and the other has DEMAND > 0 (visible in sidebar)</li>
+      <li>Try starting a NEW GAME to get fresh market data with higher probability of supply/demand routes</li>
+    </ul>
+  </div>
+
+  <script>
+    console.log('✓ Trade animation test page loaded');
+    console.log('✓ If you see moving dashes above, the CSS animation is working correctly');
+  </script>
+</body>
+</html>

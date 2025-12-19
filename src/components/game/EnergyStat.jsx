@@ -1,5 +1,4 @@
 import { Show } from 'solid-js';
-import { Zap } from 'lucide-solid';
 
 /**
  * @typedef {Object} EnergyStatProps
@@ -18,8 +17,7 @@ export const EnergyStat = (props) => {
 
   return (
     <div>
-      <div class="flex items-center gap-2 mb-1">
-        <Zap size={14} class="text-yellow-300" />
+      <div class="mb-1">
         <span class="text-[10px] text-gray-400 tracking-widest">ENERGY</span>
       </div>
       <div class="flex items-baseline gap-2">

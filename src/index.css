@@ -118,31 +118,7 @@ body {
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
 .border { border-width: 1px; }
-.border-b { border-bottom-width: 1px; border-style: solid; }
-
-/* Fix: Command bar buttons shouldn't show border circles */
-#command-bar button > div.rounded-full.border {
-  border-style: none;
-}
-
-/* Fix: Sidebar section dividers shouldn't be visible */
-#sidebar-panel .border-b {
-  border-style: none;
-}
-
-/* Fix: Sidebar border boxes shouldn't show borders */
-#sidebar-panel .border {
-  border-style: none;
-}
-
-/* Fix: Modal borders and dividers shouldn't be visible */
-.fixed.inset-0 .border-b {
-  border-style: none;
-}
-
-.fixed.inset-0 .border {
-  border-style: none;
-}
+.border-b { border-bottom-width: 1px; }
 .border-white\/10 { border-color: rgba(255, 255, 255, 0.1); }
 .border-white\/20 { border-color: rgba(255, 255, 255, 0.2); }
 
@@ -353,6 +329,10 @@ svg text {
   to { stroke-dashoffset: -20; }
 }
 
+@keyframes tradePulse {
+  to { stroke-dashoffset: -120; }
+}
+
 .ftl-line {
   stroke: rgba(255, 255, 255, 0.3);
   stroke-width: 1.5px;
@@ -381,6 +361,102 @@ svg text {
   stroke-width: 2.5px;
   stroke-dasharray: none;
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.ftl-line-dimmed {
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4, 4;
+}
+
+/* Trade Tether (Metals supply ↔ demand) */
+.ftl-line-trade-base {
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 2px;
+  stroke-dasharray: none;
+}
+
+.ftl-line-trade-base-selected {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.5px;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.ftl-line-trade-flow {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3px;
+  stroke-dasharray: 1, 14;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  animation: tradePulse 2.5s linear infinite;
+  will-change: stroke-dashoffset;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.ftl-line-trade-flow.selected {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.5px;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.ftl-line-trade-flow.reverse {
+  animation-direction: reverse;
+}
+
+/* Variable speed tether flow animation layers */
+.ftl-line-trade-flow-fast {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 3px;
+  stroke-dasharray: 2, 18;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  animation: tradePulseFast 1.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+  will-change: stroke-dashoffset;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
+.ftl-line-trade-flow-medium {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3px;
+  stroke-dasharray: 1, 16;
+  stroke-dashoffset: -40;
+  stroke-linecap: round;
+  animation: tradePulseMedium 2.8s linear infinite;
+  will-change: stroke-dashoffset;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.ftl-line-trade-flow-slow {
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 2px;
+  stroke-dasharray: 1, 20;
+  stroke-dashoffset: -80;
+  stroke-linecap: round;
+  animation: tradePulseSlow 4.2s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  will-change: stroke-dashoffset;
+  opacity: 0.45;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
+}
+
+@keyframes tradePulseFast {
+  to { stroke-dashoffset: -120; }
+}
+
+@keyframes tradePulseMedium {
+  0% { stroke-dashoffset: 0; }
+  25% { stroke-dashoffset: -20; }
+  50% { stroke-dashoffset: -70; }
+  75% { stroke-dashoffset: -120; }
+  100% { stroke-dashoffset: -140; }
+}
+
+@keyframes tradePulseSlow {
+  to { stroke-dashoffset: -160; }
 }
 
 /* StartGameButton Animation */

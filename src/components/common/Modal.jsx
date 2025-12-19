@@ -29,7 +29,7 @@ export const Modal = (props) => {
           style={{ width: props.width || '500px' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div class="flex items-center justify-between p-6 border-b border-white/10">
+          <div class="flex items-center justify-between p-6">
             <div class="flex items-center gap-3">
               {props.icon}
               <h2 class="text-lg tracking-widest">{props.title}</h2>
