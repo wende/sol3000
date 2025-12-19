@@ -21,6 +21,7 @@ import { Modal } from './components/common/Modal';
 import { ResourceIcon } from './components/common/ResourceIcon';
 import { Star, getStarColor } from './components/game/Star';
 import { StarSystem } from './components/game/StarSystem';
+import { SystemProgressRing } from './components/game/SystemProgressRing';
 import { FTLRoute } from './components/game/FTLRoute';
 import { StartGameButton } from './components/common/StartGameButton';
 import { VignetteOverlay } from './components/common/VignetteOverlay';
@@ -669,6 +670,24 @@ function ComponentsApp() {
                   + 10%
                 </Button>
               </div>
+            </div>
+
+            {/* System Progress Ring */}
+            <div>
+              <h3 class="text-xs text-gray-500 tracking-widest mb-3">SYSTEM PROGRESS RING (SCANNING)</h3>
+              <p class="text-xs text-gray-500 mb-4">
+                Used on the galaxy map while scanning. This is the same ownership ring, gradually filling in.
+              </p>
+              <svg width="220" height="70" viewBox="0 0 220 70">
+                <g transform="translate(55, 35)">
+                  <SystemProgressRing radius={18} progress={progress()} stroke="rgba(255, 255, 255, 0.9)" opacity={0.95} strokeWidth={1.5} />
+                  <text y={34} text-anchor="middle" fill="#6b7280" font-size="10">Scanning</text>
+                </g>
+                <g transform="translate(165, 35)">
+                  <SystemProgressRing radius={18} progress={100} />
+                  <text y={34} text-anchor="middle" fill="#6b7280" font-size="10">Owned</text>
+                </g>
+              </svg>
             </div>
           </GlassPanel>
           </Show>

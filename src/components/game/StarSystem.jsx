@@ -1,7 +1,7 @@
 import { Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
 import { Star } from './Star';
 import { MarketBadge } from './MarketBadge';
-import { ProgressBar } from '../common/ProgressBar';
+import { SystemProgressRing } from './SystemProgressRing';
 
 /**
  * @typedef {Object} StarSystemProps
@@ -105,12 +105,17 @@ export const StarSystem = (props) => {
 
       {/* Ownership indicator ring */}
       <Show when={isOwned() && !props.isHome}>
-        <circle
-          r={props.system.size + 15}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width={1}
-          class="opacity-50"
+        <SystemProgressRing radius={props.system.size + 15} />
+      </Show>
+
+      {/* Scan progress ring (brighter while scanning) */}
+      <Show when={!props.isHome && isBeingScanned() && !isOwned()}>
+        <SystemProgressRing
+          radius={props.system.size + 15}
+          progress={scanProgress()}
+          stroke="rgba(255, 255, 255, 0.9)"
+          opacity={0.95}
+          strokeWidth={1.5}
         />
       </Show>
 
@@ -175,21 +180,6 @@ export const StarSystem = (props) => {
         />
       </Show>
 
-      {/* Scan Progress Bar - Show when this system is being scanned, positioned below name */}
-      <Show when={isBeingScanned() && props.zoomLevel >= 0.4}>
-        <foreignObject
-          x={-25}
-          y={-props.system.size - 12}
-          width={50}
-          height={8}
-        >
-          <ProgressBar
-            progress={scanProgress()}
-            color="#ffffff"
-            height={4}
-          />
-        </foreignObject>
-      </Show>
     </g>
   );
 };
