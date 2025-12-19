@@ -1,4 +1,4 @@
-import { onMount, onCleanup, createMemo, Show } from 'solid-js';
+import { onMount, onCleanup, createEffect, createMemo, Show } from 'solid-js';
 import { createGameState } from './utils/gameState';
 import { GalaxyMap } from './components/game/GalaxyMap';
 import { SystemView } from './components/game/SystemView';
@@ -51,7 +51,7 @@ export default function App() {
   };
 
   // Keyboard Shortcuts
-  onMount(() => {
+  createEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Escape') {
         if (gameState.viewState() === 'system') {
@@ -63,7 +63,7 @@ export default function App() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
   });
 
   const selectedSystem = createMemo(() =>

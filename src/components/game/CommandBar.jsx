@@ -1,4 +1,4 @@
-import { createSignal, Show, For } from 'solid-js';
+import { createSignal, Show, For, onCleanup } from 'solid-js';
 import { Database, Navigation, RotateCcw } from 'lucide-solid';
 import { GlassPanel } from '../common/GlassPanel';
 import { Modal } from '../common/Modal';
@@ -20,6 +20,10 @@ import { TransitShipCard } from './TransitShipCard';
 export const CommandBar = (props) => {
   const [showTechModal, setShowTechModal] = createSignal(false);
   const [showFleetModal, setShowFleetModal] = createSignal(false);
+  const [now, setNow] = createSignal(Date.now());
+
+  const timer = setInterval(() => setNow(Date.now()), 250);
+  onCleanup(() => clearInterval(timer));
 
   const techList = Object.values(TECH_TREE);
 
@@ -57,13 +61,14 @@ export const CommandBar = (props) => {
   const getResearchProgress = (tech) => {
     const current = props.gameState.tech().current;
     if (!current) return 0;
-    return Math.min(100, ((Date.now() - current.startTime) / tech.researchTime) * 100);
+    const elapsed = now() - current.startTime;
+    return Math.min(100, (elapsed / tech.researchTime) * 100);
   };
 
   const getResearchRemaining = (tech) => {
     const current = props.gameState.tech().current;
     if (!current) return tech.researchTime;
-    return Math.max(0, tech.researchTime - (Date.now() - current.startTime));
+    return Math.max(0, tech.researchTime - (now() - current.startTime));
   };
 
   return (
