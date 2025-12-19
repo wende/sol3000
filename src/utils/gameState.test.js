@@ -412,4 +412,339 @@ describe('gameState', () => {
       expect(result.visibleIds.has(4)).toBe(false); // 3 hops away
     });
   });
+
+  describe('Edge Cases - Resource Overflow Protection', () => {
+    it('should prevent resource overflow for very long play sessions', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+
+        // Build ore mines to increase production dramatically
+        gameState.setResources({ ore: 950000000, credits: 950000000 }); // Very close to cap of 1e9
+
+        // Simulate continued gameplay to verify caps are enforced
+        for (let i = 0; i < 1000; i++) {
+          vi.advanceTimersByTime(100);
+        }
+
+        const resources = gameState.resources();
+        // Resources should never exceed 1 billion (1e9) even with production
+        expect(resources.ore).toBeLessThanOrEqual(1e9);
+        expect(resources.credits).toBeLessThanOrEqual(1e9);
+        // Resources may fluctuate due to construction costs and production
+        // Just verify they don't overflow
+        expect(Number.isFinite(resources.ore)).toBe(true);
+        expect(Number.isFinite(resources.credits)).toBe(true);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should handle zero production rates correctly', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+
+        // Start with no buildings
+        const initialResources = gameState.resources();
+        const initialOre = initialResources.ore;
+
+        // Advance time
+        vi.advanceTimersByTime(5000);
+
+        const finalResources = gameState.resources();
+        // Ore should increase slightly from initial mine, but not change much without energy
+        expect(finalResources.ore).toBeGreaterThanOrEqual(initialOre);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
+
+  describe('Edge Cases - Building Construction', () => {
+    it('should handle pathfinding to unreachable systems', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+        gameState.setResources({ ore: 10000, credits: 10000 });
+
+        // Build a shipyard and ship
+        gameState.startConstruction(homeId, 'building', 'shipyard');
+        vi.advanceTimersByTime(15000); // Wait for shipyard to complete
+
+        // Build a colony ship
+        gameState.startConstruction(homeId, 'ship', 'colonyShip');
+        vi.advanceTimersByTime(20000); // Wait for ship to complete
+
+        const ships = gameState.ships();
+        const result = gameState.launchColonyShip(ships[0]?.id, 99999); // Try to send to non-existent system
+
+        // Should fail gracefully (non-existent destination)
+        expect(result).toBe(false);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should handle construction with insufficient resources', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+        gameState.setResources({ ore: 1, credits: 1 }); // Very low resources
+
+        // Try to build expensive building
+        const result = gameState.startConstruction(homeId, 'building', 'shipyard');
+
+        expect(result).toBe(false); // Should fail
+        expect(gameState.resources().ore).toBe(1); // Resources unchanged
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should prevent building without required shipyard', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+        gameState.setResources({ ore: 10000, credits: 10000 });
+
+        // Try to build colony ship without shipyard
+        const result = gameState.startConstruction(homeId, 'ship', 'colonyShip');
+
+        expect(result).toBe(false); // Should fail - no shipyard
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
+
+  describe('Edge Cases - Tech Research', () => {
+    it('should prevent research without prerequisites', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        gameState.setResources({ ore: 10000, credits: 10000 });
+
+        // Try to research advanced tech without prerequisites
+        const result = gameState.startResearch('warpDrives'); // Requires advancedReactors
+
+        expect(result).toBe(false); // Should fail - missing prerequisites
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should prevent researching same tech twice', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        gameState.setResources({ ore: 10000, credits: 10000 });
+
+        // Research first tech
+        const result1 = gameState.startResearch('efficientMining');
+        expect(result1).toBe(true);
+
+        // Complete research
+        vi.advanceTimersByTime(15000);
+
+        // Try to research again
+        gameState.setResources({ ore: 10000, credits: 10000 });
+        const result2 = gameState.startResearch('efficientMining');
+        expect(result2).toBe(false); // Should fail - already researched
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should prevent concurrent research', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        gameState.setResources({ ore: 10000, credits: 10000 });
+
+        // Start first research
+        gameState.startResearch('efficientMining');
+
+        // Try to start another while first is ongoing
+        gameState.setResources({ ore: 10000, credits: 10000 });
+        const result = gameState.startResearch('tradeNetworks');
+
+        expect(result).toBe(false); // Should fail - already researching
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
+
+  describe('Edge Cases - Building Cost Calculation', () => {
+    it('should calculate exponential building costs correctly', () => {
+      const cost0 = getBuildingCost('oreMine', 0);
+      const cost1 = getBuildingCost('oreMine', 1);
+      const cost2 = getBuildingCost('oreMine', 2);
+
+      expect(cost1.ore).toBeGreaterThan(cost0.ore);
+      expect(cost2.ore).toBeGreaterThan(cost1.ore);
+
+      // Verify exponential scaling (factor = 1.15)
+      expect(cost1.ore).toBe(Math.floor(cost0.ore * 1.15));
+      expect(cost2.ore).toBe(Math.floor(cost0.ore * Math.pow(1.15, 2)));
+    });
+
+    it('should handle high building levels without overflow', () => {
+      // Test very high levels to ensure no integer overflow
+      const costHigh = getBuildingCost('oreMine', 50);
+
+      expect(costHigh.ore).toBeGreaterThan(0);
+      expect(costHigh.ore).toBeLessThan(1e10); // Sanity check
+      expect(Number.isFinite(costHigh.ore)).toBe(true);
+    });
+  });
+
+  describe('Edge Cases - Scanning', () => {
+    it('should prevent scanning while already scanning', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+        gameState.setResources({ ore: 10000, credits: 10000 });
+
+        const galaxy = gameState.galaxyData();
+        const targetSystem = galaxy.systems.find(s => s.id !== homeId && s.owner === 'Unclaimed');
+
+        // Start first scan
+        gameState.scanSystem(targetSystem.id);
+
+        // Try to start another scan
+        const result = gameState.scanSystem(targetSystem.id);
+        expect(result).toBe(false); // Should fail - already scanning
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should prevent scanning with insufficient credits', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+        gameState.setResources({ ore: 10000, credits: 10 }); // Not enough credits
+
+        const galaxy = gameState.galaxyData();
+        const targetSystem = galaxy.systems.find(s => s.id !== homeId && s.owner === 'Unclaimed');
+
+        const result = gameState.scanSystem(targetSystem.id);
+        expect(result).toBe(false); // Should fail - insufficient credits
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
+
+  describe('Edge Cases - Energy Management', () => {
+    it('should calculate energy state with no buildings', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const energy = gameState.energyState();
+
+        // Should have starting capacity and usage values
+        expect(energy).toBeDefined();
+        expect(energy.capacity).toBeGreaterThan(0);
+        expect(energy.usage).toBeGreaterThanOrEqual(0);
+        expect(energy.usage).toBeLessThanOrEqual(energy.capacity);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should handle energy deficits gracefully', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const homeId = gameState.homeSystemId();
+        gameState.setResources({ ore: 50000, credits: 50000 });
+
+        // Build 5 ore mines to increase energy usage
+        for (let i = 0; i < 5; i++) {
+          gameState.startConstruction(homeId, 'building', 'oreMine');
+        }
+
+        // Fast forward through construction
+        vi.advanceTimersByTime(50000);
+
+        const energy = gameState.energyState();
+        // Energy calculation should always produce valid numbers
+        expect(energy).toBeDefined();
+        expect(Number.isFinite(energy.capacity)).toBe(true);
+        expect(Number.isFinite(energy.usage)).toBe(true);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
 });

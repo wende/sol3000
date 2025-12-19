@@ -1,4 +1,4 @@
-import { onMount, createEffect, Show, For, createMemo } from 'solid-js';
+import { onMount, createEffect, Show, For, createMemo, onCleanup } from 'solid-js';
 import * as d3 from 'd3';
 import { MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from '../../utils/galaxy';
 import { FTLTethers } from './FTLTethers';
@@ -38,6 +38,10 @@ export const GalaxyMap = (props) => {
   let lastClickTime = 0;
   let lastClickId = null;
   let hasZoomedToHome = false;
+  let activeTransition = null;
+  let homeZoomTimeoutId = null;
+  let lastZoomUpdate = 0;
+  const ZOOM_UPDATE_INTERVAL = 50; // ms - debounce zoom level updates
 
   // Initialize Zoom
   onMount(() => {
@@ -49,8 +53,12 @@ export const GalaxyMap = (props) => {
       .clickDistance(5) // Allow up to 5px movement and still register as click
       .on('zoom', (e) => {
         d3.select(gRef).attr('transform', e.transform);
-        // Update zoom level for LOD (Level of Detail)
-        props.setZoomLevel(e.transform.k);
+        // Debounce zoom level updates for LOD to reduce re-renders
+        const now = Date.now();
+        if (now - lastZoomUpdate > ZOOM_UPDATE_INTERVAL) {
+          props.setZoomLevel(e.transform.k);
+          lastZoomUpdate = now;
+        }
       });
 
     const svg = d3.select(svgRef);
@@ -67,9 +75,27 @@ export const GalaxyMap = (props) => {
     svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(initialScale));
   });
 
+  // Cleanup D3 event handlers on unmount
+  onCleanup(() => {
+    if (svgRef && zoomBehavior) {
+      d3.select(svgRef).on('.zoom', null); // Remove all D3 zoom event handlers
+    }
+    if (activeTransition) {
+      activeTransition.interrupt(); // Stop any active transitions
+    }
+    if (homeZoomTimeoutId) {
+      clearTimeout(homeZoomTimeoutId); // Clear zoom-to-home timeout
+    }
+  });
+
   // Function to center and zoom on a system
   const centerOnSystem = (sys, duration = 750) => {
     if (!svgRef || !zoomBehavior) return;
+
+    // Interrupt any active transition
+    if (activeTransition) {
+      activeTransition.interrupt();
+    }
 
     const svg = d3.select(svgRef);
     const targetScale = 8.0; // Zoom in aggressively for transition
@@ -84,7 +110,7 @@ export const GalaxyMap = (props) => {
       .scale(targetScale)
       .translate(-sys.x, -sys.y);
 
-    svg.transition()
+    activeTransition = svg.transition()
       .duration(duration)
       .call(zoomBehavior.transform, transform);
   };
@@ -111,6 +137,10 @@ export const GalaxyMap = (props) => {
     // Reset view when home is cleared (new game started)
     if (!homeId) {
       hasZoomedToHome = false;
+      if (homeZoomTimeoutId) {
+        clearTimeout(homeZoomTimeoutId);
+        homeZoomTimeoutId = null;
+      }
       resetToFullGalaxy();
       return;
     }
@@ -120,9 +150,10 @@ export const GalaxyMap = (props) => {
       const homeSystem = props.data.systems.find(s => s.id === homeId);
       if (homeSystem && svgRef && zoomBehavior) {
         // Small delay to ensure DOM is ready
-        setTimeout(() => {
+        homeZoomTimeoutId = setTimeout(() => {
           centerOnSystem(homeSystem, 1200);
           hasZoomedToHome = true;
+          homeZoomTimeoutId = null;
         }, 100);
       }
     }
