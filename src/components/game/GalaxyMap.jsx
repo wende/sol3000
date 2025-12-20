@@ -491,8 +491,8 @@ export const GalaxyMap = (props) => {
           </feMerge>
         </filter>
 
-        {/* Star Glow Filter (Copied from SystemView for transition) */}
-        <filter id="star-glow" x="-50%" y="-50%" width="200%" height="200%">
+        {/* Star Glow Filter (map-scale version for cinematic zoom) */}
+        <filter id="star-glow-map" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="2" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />

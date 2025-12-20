@@ -86,27 +86,58 @@ export function getStarColor(spectralClass, systemId, size) {
  *
  * @param {StarProps} props
  */
+const SYSTEM_VIEW_STAR_SCALE = 10; // SystemView star radius multiplier
+const SYSTEM_VIEW_OUTER_SHADOW = 60;
+const SYSTEM_VIEW_INNER_SHADOW = 15;
+const MAP_GLOW_OUTER_SHADOW = SYSTEM_VIEW_OUTER_SHADOW / SYSTEM_VIEW_STAR_SCALE; // 6px relative
+const MAP_GLOW_INNER_SHADOW = SYSTEM_VIEW_INNER_SHADOW / SYSTEM_VIEW_STAR_SCALE; // 1.5px relative
+
 export const Star = (props) => {
   const color = () => getStarColor(props.spectralClass, props.id, props.size);
+  const starStyle = () => ({
+    '--star-color': color(),
+    ...(props.isTransitioning ? {
+      '--transition-glow-outer': `${MAP_GLOW_OUTER_SHADOW}px`,
+      '--transition-glow-inner': `${MAP_GLOW_INNER_SHADOW}px`
+    } : {})
+  });
+
+  const baseRadius = props.size;
+  const glowRadii = {
+    outer: baseRadius * 1.4, // matches 14/10 ratio from SystemView
+    middle: baseRadius,      // aligns with main star body
+    inner: baseRadius * 0.8  // inner highlight ratio 8/10
+  };
 
   return (
-    <g>
-      {/* Halo - only visible during transition to match SystemView */}
+    <g style={starStyle()}>
+      {/* Cinematic glow stack for system transitions */}
       {props.isTransitioning && (
-        <circle
-          r={props.size * 1.4}
-          fill={color()}
-          opacity="0.1"
-          filter="url(#star-glow)"
-          style={`pointer-events: none;`}
-        />
+        <g class="transition-glow" style="pointer-events: none;">
+          <circle
+            r={glowRadii.outer}
+            fill={color()}
+            opacity="0.1"
+            filter="url(#star-glow-map)"
+          />
+          <circle
+            r={glowRadii.middle}
+            fill={color()}
+            filter="url(#star-glow-map)"
+          />
+          <circle
+            r={glowRadii.inner}
+            fill="white"
+            opacity="0.2"
+          />
+        </g>
       )}
       <circle
         id={`star-${props.id}`}
         r={props.size}
         fill={color()}
         class={`star ${props.isTransitioning ? '' : (props.lodClass || '')} ${props.isSelected ? 'selected-glow' : ''} ${props.isTransitioning ? 'transition-glow' : ''}`}
-        style={`animation-delay: -${(props.id * 0.3) % 4}s; --star-color: ${color()};`}
+        style={`animation-delay: -${(props.id * 0.3) % 4}s;`}
       />
     </g>
   );

@@ -1,6 +1,6 @@
 import { Button } from '../common/Button';
 import { GlassPanel } from '../common/GlassPanel';
-import { Star, getStarColor } from './Star';
+import { getStarColor } from './Star';
 import { SPECTRAL_CLASSES } from '../../utils/galaxy';
 
 /**
@@ -15,6 +15,11 @@ export const SystemView = (props) => {
 
   const spectralData = SPECTRAL_CLASSES[system().spectralClass];
   const starColor = () => getStarColor(system().spectralClass, system().id, system().size);
+  const starGlowStyle = () => ({
+    '--star-color': starColor(),
+    '--transition-glow-outer': '60px',
+    '--transition-glow-inner': '15px'
+  });
 
   return (
     <div class="w-full h-full bg-black flex overflow-hidden">
@@ -107,7 +112,7 @@ export const SystemView = (props) => {
                  </defs>
 
                  {/* Central Star - Offset to show full body */}
-                 <g transform="translate(240, 300)">
+                 <g transform="translate(240, 300)" class="transition-glow" style={starGlowStyle()}>
                     {/* Outer Corona */}
                     <circle cx="0" cy="0" r={system().size * 14} fill={starColor()} opacity="0.1" filter="url(#star-glow)" />
                     {/* Main Body */}

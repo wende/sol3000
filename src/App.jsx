@@ -3,7 +3,6 @@ import { createGameState } from './utils/gameState';
 import { GalaxyMap } from './components/game/GalaxyMap';
 import { SystemView } from './components/game/SystemView';
 import { Sidebar } from './components/game/Sidebar';
-import { StatsPanel } from './components/game/StatsPanel';
 import { CommandBar } from './components/game/CommandBar';
 import { BackgroundGrid } from './components/common/BackgroundGrid';
 import { StartGameButton } from './components/common/StartGameButton';
@@ -98,10 +97,6 @@ export default function App() {
       distance: Math.round(distance)
     };
   });
-
-  const playerSystemsCount = createMemo(() =>
-    gameState.galaxyData().systems.filter(s => s.owner === 'Player').length
-  );
 
   // Use isGameActive for button visibility (immediate), homeSystemId for UI panels (after zoom)
   const hasGameStarted = createMemo(() => gameState.homeSystemId() !== null);
@@ -263,7 +258,8 @@ export default function App() {
         .transition-glow {
           opacity: 1 !important;
           animation: none !important;
-          filter: drop-shadow(0 0 60px var(--star-color)) drop-shadow(0 0 15px white) !important;
+          filter: drop-shadow(0 0 var(--transition-glow-outer, 60px) var(--star-color))
+                  drop-shadow(0 0 var(--transition-glow-inner, 15px) white) !important;
           transition: filter 2s ease-in-out, opacity 1s ease-in-out;
         }
 
@@ -357,18 +353,6 @@ export default function App() {
           gameState={gameState}
           tradeFlows={gameState.tradeFlows()}
         />
-
-        {/* Stats Moved to Left - Slide out to left when not in galaxy view */}
-        <div class={`absolute top-6 left-6 z-40 transition-all duration-500 ${gameState.viewState() === 'galaxy' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
-          <StatsPanel
-            resources={gameState.resources()}
-            productionRates={gameState.productionRates()}
-            energyState={gameState.energyState()}
-            systemsOwned={playerSystemsCount()}
-            maxSystems={gameState.galaxyData().systems.length}
-            tech={gameState.tech()}
-          />
-        </div>
 
         {/* Command Bar - Slide down when not in galaxy view */}
         <div class={`absolute bottom-10 left-6 z-40 transition-all duration-500 ${gameState.viewState() === 'galaxy' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
