@@ -1,9 +1,10 @@
-import { onMount, createEffect, Show, For, createMemo, createSignal, onCleanup } from 'solid-js';
+import { createEffect, Show, For, createMemo, createSignal, onCleanup } from 'solid-js';
 import * as d3 from 'd3';
 import { MAP_WIDTH, MAP_HEIGHT, CENTER_X, CENTER_Y } from '../../utils/galaxy';
 import { FTLTethers } from './FTLTethers';
 import { FTLRoute } from './FTLRoute';
 import { StarSystem } from './StarSystem';
+import { useZoomableSvg } from '../../hooks/useZoomableSvg';
 
 /**
  * @typedef {Object} GalaxyMapProps
@@ -35,9 +36,6 @@ import { StarSystem } from './StarSystem';
  * @param {GalaxyMapProps} props
  */
 export const GalaxyMap = (props) => {
-  let svgRef;
-  let gRef;
-  let zoomBehavior;
   let hasZoomedToHome = false;
   let homeZoomTimeoutId = null;
   let lastZoomUpdate = 0;
@@ -55,48 +53,39 @@ export const GalaxyMap = (props) => {
   const RETURN_VIEW_SCALE = MANUAL_MAX_SCALE; // Pull back to manual max after exiting system view
   const FULL_GALAXY_SCALE = 0.45;
 
-  // Initialize Zoom
-  onMount(() => {
-    if (!svgRef || !gRef) return;
-
-    zoomBehavior = d3.zoom()
-      .scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE])
-      .translateExtent([[-1000, -1000], [MAP_WIDTH + 1000, MAP_HEIGHT + 1000]])
-      .clickDistance(5) // Allow up to 5px movement and still register as click
-      .on('zoom', (e) => {
-        d3.select(gRef).attr('transform', e.transform);
-        // Skip zoom level updates during animated transitions to prevent flicker
-        if (isAnimatingZoom) return;
-        // Debounce zoom level updates for LOD to reduce re-renders
-        const now = Date.now();
-        if (now - lastZoomUpdate > ZOOM_UPDATE_INTERVAL) {
-          props.setZoomLevel(e.transform.k);
-          lastZoomUpdate = now;
-        }
-      });
-
-    const svg = d3.select(svgRef);
-    svg.call(zoomBehavior);
-    // Disable D3's built-in double-click zoom to use our custom handler
-    svg.on('dblclick.zoom', null);
-
-    // Center the view on the galaxy center (CENTER_X, CENTER_Y)
-    const initialScale = 0.45;
-    // Set zoom level immediately before applying transform to prevent LOD flicker
-    props.setZoomLevel(initialScale);
-    const translateX = (window.innerWidth / 2) - (CENTER_X * initialScale);
-    const translateY = (window.innerHeight / 2) - (CENTER_Y * initialScale);
-    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(initialScale));
+  const {
+    setSvgRef,
+    setGroupRef,
+    getSvgSelection,
+    getZoomBehavior,
+  } = useZoomableSvg({
+    minScale: MANUAL_MIN_SCALE,
+    maxScale: MANUAL_MAX_SCALE,
+    translateExtent: [[-1000, -1000], [MAP_WIDTH + 1000, MAP_HEIGHT + 1000]],
+    clickDistance: 5,
+    onZoom: (event) => {
+      if (isAnimatingZoom) return;
+      const now = Date.now();
+      if (now - lastZoomUpdate > ZOOM_UPDATE_INTERVAL) {
+        props.setZoomLevel(event.transform.k);
+        lastZoomUpdate = now;
+      }
+    },
+    onInitialize: ({ svg, zoomBehavior }) => {
+      if (!svg || !zoomBehavior) return;
+      props.setZoomLevel(FULL_GALAXY_SCALE);
+      const translateX = (window.innerWidth / 2) - (CENTER_X * FULL_GALAXY_SCALE);
+      const translateY = (window.innerHeight / 2) - (CENTER_Y * FULL_GALAXY_SCALE);
+      svg.call(
+        zoomBehavior.transform,
+        d3.zoomIdentity.translate(translateX, translateY).scale(FULL_GALAXY_SCALE)
+      );
+    },
   });
+
 
   // Cleanup D3 event handlers on unmount
   onCleanup(() => {
-    if (svgRef && zoomBehavior) {
-      d3.select(svgRef).on('.zoom', null); // Remove all D3 zoom event handlers
-    }
-    if (svgRef) {
-      d3.select(svgRef).interrupt(); // Stop any active transitions
-    }
     if (homeZoomTimeoutId) {
       clearTimeout(homeZoomTimeoutId); // Clear zoom-to-home timeout
     }
@@ -104,9 +93,10 @@ export const GalaxyMap = (props) => {
 
   // Function to center and zoom on a system
   const centerOnSystem = (sys, duration = 2000, targetScale = SYSTEM_VIEW_SCALE) => {
-    if (!svgRef || !zoomBehavior) return;
+    const svg = getSvgSelection();
+    const zoom = getZoomBehavior();
+    if (!svg || !zoom) return;
 
-    const svg = d3.select(svgRef);
     svg.interrupt();
 
     // Skip zoom level updates during the animation to prevent flicker
@@ -126,7 +116,7 @@ export const GalaxyMap = (props) => {
     return svg.transition()
       .duration(duration)
       .ease(d3.easeExpInOut) // Smooth acceleration/deceleration
-      .call(zoomBehavior.transform, transform)
+      .call(zoom.transform, transform)
       .on('end.zoomLevel', () => {
         isAnimatingZoom = false;
         props.setZoomLevel(targetScale);
@@ -138,11 +128,12 @@ export const GalaxyMap = (props) => {
 
   // Reset view to show full galaxy (zoomed out)
   const resetToFullGalaxy = (targetScale = FULL_GALAXY_SCALE, duration = 500) => {
-    if (!svgRef || !zoomBehavior) return;
+    const svg = getSvgSelection();
+    const zoom = getZoomBehavior();
+    if (!svg || !zoom) return;
 
     setTransitioningId(null);
 
-    const svg = d3.select(svgRef);
     svg.interrupt();
 
     // Skip zoom level updates during the animation to prevent flicker
@@ -154,7 +145,7 @@ export const GalaxyMap = (props) => {
     return svg.transition()
       .duration(duration)
       .ease(d3.easeCubicInOut)
-      .call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(targetScale))
+      .call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(targetScale))
       .on('end.zoomLevel', () => {
         isAnimatingZoom = false;
         props.setZoomLevel(targetScale);
@@ -194,14 +185,19 @@ export const GalaxyMap = (props) => {
     // Zoom to home system once it's set
     if (hasHome && !hasZoomedToHome && props.data.systems.length > 0) {
       const homeSystem = props.data.systems.find(s => s.id === homeId);
-      if (homeSystem && svgRef && zoomBehavior) {
+      if (homeSystem) {
         // Small delay to ensure DOM is ready
         homeZoomTimeoutId = setTimeout(() => {
           // Skip zoom level updates during the animation to prevent flicker
           isAnimatingZoom = true;
 
           // Use simpler zoom for initial home focus
-          const svg = d3.select(svgRef);
+          const svg = getSvgSelection();
+          const zoom = getZoomBehavior();
+          if (!svg || !zoom) {
+            isAnimatingZoom = false;
+            return;
+          }
           const targetScale = 1.5;
           const transform = d3.zoomIdentity
             .translate(window.innerWidth / 2, window.innerHeight / 2)
@@ -210,7 +206,7 @@ export const GalaxyMap = (props) => {
 
           svg.transition()
             .duration(1200)
-            .call(zoomBehavior.transform, transform)
+            .call(zoom.transform, transform)
             .on('end.zoomLevel', () => {
               isAnimatingZoom = false;
               props.setZoomLevel(targetScale);
@@ -229,14 +225,15 @@ export const GalaxyMap = (props) => {
   // When leaving system view, animate back to the full galaxy framing
   createEffect(() => {
     const currentView = props.viewState || 'galaxy';
-    if (!svgRef || !zoomBehavior) {
+    const zoom = getZoomBehavior();
+    if (!zoom) {
       lastViewState = currentView;
       return;
     }
 
     if (currentView === 'system') {
       // Keep the current zoom transform valid while System View is active.
-      zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
+      zoom.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
     }
 
     if (lastViewState === 'system' && currentView === 'galaxy') {
@@ -244,7 +241,7 @@ export const GalaxyMap = (props) => {
       setIsExitingSystemView(true);
 
       // Start the return animation from the full cinematic zoom-out.
-      zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
+      zoom.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
 
       const targetSystem = lastFocusedSystem || props.data.systems.find(s => s.id === props.viewSystemId);
       const transition = targetSystem
@@ -254,15 +251,15 @@ export const GalaxyMap = (props) => {
       if (transition) {
         transition
           .on('end.manualZoomLimits', () => {
-            zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+            zoom.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
             setIsExitingSystemView(false);
           })
           .on('interrupt.manualZoomLimits', () => {
-            zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+            zoom.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
             setIsExitingSystemView(false);
           });
       } else {
-        zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+        zoom.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
         setIsExitingSystemView(false);
       }
     }
@@ -280,7 +277,8 @@ export const GalaxyMap = (props) => {
     e.stopPropagation();
 
     // Allow the cinematic zoom to exceed the manual zoom limit.
-    zoomBehavior?.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
+    const zoom = getZoomBehavior();
+    zoom?.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
 
     setTransitioningId(sys.id);
     lastFocusedSystem = sys;
@@ -438,7 +436,7 @@ export const GalaxyMap = (props) => {
   return (
     <svg
       id="galaxy-map-svg"
-      ref={svgRef}
+      ref={setSvgRef}
       class="w-full h-full cursor-grab active:cursor-grabbing galaxy-map-svg"
       style={{ background: 'transparent' }}
       onClick={handleBackgroundClick}
@@ -490,7 +488,7 @@ export const GalaxyMap = (props) => {
         </filter>
       </defs>
 
-      <g ref={gRef} class="gpu-accelerated">
+      <g ref={setGroupRef} class="gpu-accelerated">
         {/* FTL Lines - Hidden when zoomed out for performance */}
         <Show when={props.zoomLevel >= 0.25}>
           <For each={visibleRoutesFiltered()}>

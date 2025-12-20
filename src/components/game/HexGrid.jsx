@@ -1,6 +1,6 @@
-import { onMount, createEffect, onCleanup, createSignal, For, createMemo, Show } from 'solid-js';
-import * as d3 from 'd3';
+import { createSignal, For, createMemo, Show } from 'solid-js';
 import { Building } from './Buildings';
+import { useZoomableSvg } from '../../hooks/useZoomableSvg';
 
 // Hexagon constants
 const HEX_SIZE = 40;
@@ -34,43 +34,28 @@ const getHexPoints = (x, y, size) => {
  */
 
 export const HexGrid = (props) => {
-  let svgRef;
-  let gRef;
-  let zoomBehavior;
-
   // Manual zoom limits similar to GalaxyMap
   const MIN_SCALE = 0.1;
   const MAX_SCALE = 3.0;
   
   // Transform signal to sync with D3
   const [transform, setTransform] = createSignal({ k: 1, x: 0, y: 0 });
-
-  onMount(() => {
-    if (!svgRef || !gRef) return;
-
-    zoomBehavior = d3.zoom()
-      .scaleExtent([MIN_SCALE, MAX_SCALE])
-      .on('zoom', (e) => {
-        d3.select(gRef).attr('transform', e.transform);
-        setTransform(e.transform);
-      });
-
-    const svg = d3.select(svgRef);
-    svg.call(zoomBehavior);
-    svg.on('dblclick.zoom', null);
-
-    // Center the view initially
-    const initialScale = 1;
-    const initialX = window.innerWidth / 2;
-    const initialY = window.innerHeight / 2;
-    
-    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(initialX, initialY).scale(initialScale));
-  });
-
-  onCleanup(() => {
-    if (svgRef && zoomBehavior) {
-      d3.select(svgRef).on('.zoom', null);
-    }
+  const { setSvgRef, setGroupRef } = useZoomableSvg({
+    minScale: MIN_SCALE,
+    maxScale: MAX_SCALE,
+    onZoom: (event) => {
+      setTransform(event.transform);
+    },
+    onInitialize: ({ svg, zoomBehavior, d3 }) => {
+      if (!svg || !zoomBehavior) return;
+      const initialScale = 1;
+      const initialX = window.innerWidth / 2;
+      const initialY = window.innerHeight / 2;
+      svg.call(
+        zoomBehavior.transform,
+        d3.zoomIdentity.translate(initialX, initialY).scale(initialScale)
+      );
+    },
   });
 
   const handleHexClick = (e, hex) => {
@@ -146,11 +131,11 @@ export const HexGrid = (props) => {
 
   return (
     <svg
-      ref={svgRef}
+      ref={setSvgRef}
       class="w-full h-full cursor-grab active:cursor-grabbing bg-black"
       onClick={handleBackgroundClick}
     >
-      <g ref={gRef}>
+      <g ref={setGroupRef}>
         {/* Render Hexes (Fills) */}
         <For each={props.hexes}>
           {(hex) => {
