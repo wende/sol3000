@@ -1,5 +1,6 @@
-import { onMount, createEffect, onCleanup, createSignal, For, createMemo } from 'solid-js';
+import { onMount, createEffect, onCleanup, createSignal, For, createMemo, Show } from 'solid-js';
 import * as d3 from 'd3';
+import { Building } from './Buildings';
 
 // Hexagon constants
 const HEX_SIZE = 40;
@@ -29,6 +30,7 @@ const getHexPoints = (x, y, size) => {
  * @property {Array} hexes - Array of hex objects { q, r, id, content... }
  * @property {Function} onHexSelect - Callback when a hex is selected
  * @property {Array<string|number>} selectedHexIds - Array of IDs of the currently selected hexes
+ * @property {Object} hexBuildings - Map of hex id to building key
  */
 
 export const HexGrid = (props) => {
@@ -155,9 +157,10 @@ export const HexGrid = (props) => {
             const pos = hexToPixel(hex.q, hex.r);
             // We use the reactive memo here to avoid prop drilling issues if any
             const isSelected = selectedSet().has(hex.id);
-            
+            const buildingKey = () => props.hexBuildings?.[hex.id];
+
             return (
-              <g 
+              <g
                 transform={`translate(${pos.x}, ${pos.y})`}
                 onClick={(e) => handleHexClick(e, hex)}
                 class="transition-opacity duration-300"
@@ -172,18 +175,44 @@ export const HexGrid = (props) => {
                   stroke-width={1}
                   class={`transition-all duration-200 hover:fill-white/10 ${isSelected ? '' : 'hover:stroke-white/40'}`}
                 />
-                
-                {/* Debug Coord Label */}
-                <text
-                  x="0"
-                  y="0"
-                  text-anchor="middle"
-                  alignment-baseline="middle"
-                  class="text-[8px] pointer-events-none fill-white/20 select-none font-mono"
-                  style={{ "font-size": "8px" }}
-                >
-                  {`${hex.q},${hex.r}`}
-                </text>
+
+                {/* Building on hex */}
+                <Show when={buildingKey()}>
+                  <foreignObject
+                    x={-HEX_SIZE * 0.6}
+                    y={-HEX_SIZE * 0.6}
+                    width={HEX_SIZE * 1.2}
+                    height={HEX_SIZE * 1.2}
+                    class="pointer-events-none"
+                  >
+                    <div
+                      xmlns="http://www.w3.org/1999/xhtml"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        'align-items': 'center',
+                        'justify-content': 'center',
+                      }}
+                    >
+                      <Building buildingKey={buildingKey()} size={HEX_SIZE * 1.1} />
+                    </div>
+                  </foreignObject>
+                </Show>
+
+                {/* Debug Coord Label - only show when no building */}
+                <Show when={!buildingKey()}>
+                  <text
+                    x="0"
+                    y="0"
+                    text-anchor="middle"
+                    alignment-baseline="middle"
+                    class="text-[8px] pointer-events-none fill-white/20 select-none font-mono"
+                    style={{ "font-size": "8px" }}
+                  >
+                    {`${hex.q},${hex.r}`}
+                  </text>
+                </Show>
               </g>
             );
           }}

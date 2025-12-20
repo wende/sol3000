@@ -1,10 +1,12 @@
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { HexGrid } from './components/game/HexGrid';
+import { getRandomBuildingKey } from './components/game/Buildings';
 import './index.css';
 
 const App = () => {
   const [selectedHexIds, setSelectedHexIds] = createSignal([]);
+  const [hexBuildings, setHexBuildings] = createSignal({});
 
   // Generate a hexagonal map of hexes
   // Spiral generation or just a rectangle of hexes
@@ -34,6 +36,12 @@ const App = () => {
       }
       return [...prev, id];
     });
+
+    // Add a random building to the hex if it doesn't have one
+    setHexBuildings((prev) => {
+      if (prev[id]) return prev; // Already has a building
+      return { ...prev, [id]: getRandomBuildingKey() };
+    });
   };
 
   return (
@@ -46,10 +54,11 @@ const App = () => {
         </div>
       </div>
       
-      <HexGrid 
-        hexes={hexData} 
-        selectedHexIds={selectedHexIds()} 
-        onHexSelect={handleHexSelect} 
+      <HexGrid
+        hexes={hexData}
+        selectedHexIds={selectedHexIds()}
+        onHexSelect={handleHexSelect}
+        hexBuildings={hexBuildings()}
       />
     </div>
   );
