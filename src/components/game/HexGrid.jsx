@@ -1,4 +1,4 @@
-import { createSignal, For, createMemo, Show } from 'solid-js';
+import { createSignal, For, createMemo, Show, createEffect, onMount, onCleanup } from 'solid-js';
 import { Building } from './Buildings';
 import { useZoomableSvg } from '../../hooks/useZoomableSvg';
 import { SystemProgressRing } from './SystemProgressRing';
@@ -61,14 +61,15 @@ export const HexGrid = (props) => {
         zoomBehavior.transform,
         d3.zoomIdentity.translate(initialX, initialY).scale(initialScale)
       );
-    },
-    onMount: () => {
-      // Start progress update interval for construction progress
-      const progressInterval = setInterval(() => {
-        setCurrentTime(Date.now());
-      }, 100);
-      return () => clearInterval(progressInterval);
     }
+  });
+
+  // Start progress update interval for construction progress
+  onMount(() => {
+    const progressInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 100);
+    onCleanup(() => clearInterval(progressInterval));
   });
 
   const handleHexClick = (e, hex) => {
@@ -90,8 +91,10 @@ export const HexGrid = (props) => {
   // Memoized Set of selected IDs for O(1) lookup
   const selectedSet = createMemo(() => new Set(props.selectedHexIds || []));
 
-  // Memoized map of hex ID to construction progress
-  const constructionProgressMap = createMemo(() => {
+  // Construction progress map - updated via effect when time changes
+  const [constructionProgressMap, setConstructionProgressMap] = createSignal(new Map());
+
+  createEffect(() => {
     const queue = props.hexConstructionQueue || [];
     const now = currentTime();
     const map = new Map();
@@ -108,7 +111,7 @@ export const HexGrid = (props) => {
       });
     });
 
-    return map;
+    setConstructionProgressMap(map);
   });
 
   // Memoized Map of coordinate to ID to facilitate neighbor lookup
@@ -120,17 +123,17 @@ export const HexGrid = (props) => {
     return map;
   });
 
-  // Calculate boundary segments for the "merged" selection look
+  // Calculate boundary segments for hexes with buildings (merged glow outline)
   const boundarySegments = createMemo(() => {
     const segments = [];
-    const selected = selectedSet();
     const idMap = hexIdMap();
+    const buildings = props.hexBuildings || {};
     if (!props.hexes) return segments;
 
-    // Only process selected hexes
-    const selectedHexes = props.hexes.filter(h => selected.has(h.id));
+    // Process hexes that have buildings
+    const builtHexes = props.hexes.filter(h => buildings[h.id]);
 
-    selectedHexes.forEach(hex => {
+    builtHexes.forEach(hex => {
       const { x, y } = hexToPixel(hex.q, hex.r);
 
       // Check all 6 directions
@@ -144,8 +147,8 @@ export const HexGrid = (props) => {
         const nr = hex.r + dir.r;
         const nId = idMap.get(`${nq},${nr}`);
 
-        // If neighbor is NOT selected, this edge is a boundary
-        if (nId === undefined || !selected.has(nId)) {
+        // If neighbor doesn't have a building, this edge is a boundary
+        if (nId === undefined || !buildings[nId]) {
            // Calculate corners for side i
            // Angles for Pointy Topped: 60*i - 30
            const angle1 = Math.PI / 180 * (60 * i - 30);
@@ -174,8 +177,8 @@ export const HexGrid = (props) => {
         <For each={props.hexes}>
           {(hex) => {
             const pos = hexToPixel(hex.q, hex.r);
-            // We use the reactive memo here to avoid prop drilling issues if any
-            const isSelected = selectedSet().has(hex.id);
+            // Use functions for reactive values
+            const isSelected = () => selectedSet().has(hex.id);
             const buildingKey = () => props.hexBuildings?.[hex.id];
             const constructionInfo = () => constructionProgressMap().get(hex.id);
 
@@ -189,11 +192,11 @@ export const HexGrid = (props) => {
                 <polygon
                   points={getHexPoints(0, 0, HEX_SIZE)}
                   // If selected, use the glowy fill but NO stroke (handled by boundary layer)
-                  fill={isSelected ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.03)"}
+                  fill={isSelected() ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.03)"}
                   // Only stroke unselected hexes
-                  stroke={isSelected ? "none" : "rgba(255, 255, 255, 0.15)"}
+                  stroke={isSelected() ? "none" : "rgba(255, 255, 255, 0.15)"}
                   stroke-width={1}
-                  class={`transition-all duration-200 hover:fill-white/10 ${isSelected ? '' : 'hover:stroke-white/40'}`}
+                  class={`transition-all duration-200 hover:fill-white/10 ${isSelected() ? '' : 'hover:stroke-white/40'}`}
                 />
 
                 {/* Building on hex (completed) */}
@@ -244,13 +247,18 @@ export const HexGrid = (props) => {
                     </div>
                   </foreignObject>
 
-                  {/* Progress ring */}
-                  <SystemProgressRing
-                    radius={HEX_SIZE * 0.75}
-                    progress={constructionInfo().progress}
+                  {/* Progress ring - inline implementation */}
+                  <circle
+                    cx="0"
+                    cy="0"
+                    r={HEX_SIZE * 0.75}
+                    fill="none"
                     stroke="rgba(255, 255, 255, 0.9)"
-                    strokeWidth={2}
-                    opacity={0.95}
+                    stroke-width="2"
+                    opacity="0.95"
+                    stroke-dasharray={`${(constructionInfo().progress / 100) * 2 * Math.PI * HEX_SIZE * 0.75} ${2 * Math.PI * HEX_SIZE * 0.75}`}
+                    transform="rotate(-90)"
+                    style={{ transition: 'stroke-dasharray 150ms linear' }}
                   />
                 </Show>
 

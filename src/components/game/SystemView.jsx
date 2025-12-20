@@ -2,6 +2,7 @@ import { createSignal, createEffect, onCleanup, createMemo, Show } from 'solid-j
 import { Button } from '../common/Button';
 import { GlassPanel } from '../common/GlassPanel';
 import { getStarColor } from './Star';
+import { SystemProgressRing } from './SystemProgressRing';
 import { SPECTRAL_CLASSES } from '../../utils/galaxy';
 
 /**
@@ -214,21 +215,25 @@ export const SystemView = (props) => {
                              {/* Hit Area - Increased for easier clicking */}
                              <circle r={30} fill="transparent" />
 
-                             {/* Home Planet Indicator */}
+                             {/* Home Planet Indicator - Using SystemProgressRing */}
                              {planet.isHomePlanet && (
                                <g>
-                                 <circle 
-                                   r={Math.max(4, planet.radius) + 6} 
-                                   fill="none" 
-                                   stroke="rgba(100, 200, 255, 0.4)" 
-                                   stroke-width="1"
+                                 {/* Inner ring - solid */}
+                                 <SystemProgressRing
+                                   radius={Math.max(4, planet.radius) + 6}
+                                   progress={100}
+                                   stroke="rgba(100, 200, 255, 0.6)"
+                                   strokeWidth={1.5}
+                                   opacity={0.8}
                                  />
-                                 <circle 
-                                   r={Math.max(4, planet.radius) + 9} 
-                                   fill="none" 
-                                   stroke="rgba(100, 200, 255, 0.2)" 
+                                 {/* Outer ring - dashed */}
+                                 <circle
+                                   r={Math.max(4, planet.radius) + 9}
+                                   fill="none"
+                                   stroke="rgba(100, 200, 255, 0.3)"
                                    stroke-width="1"
                                    stroke-dasharray="2 4"
+                                   class="animate-pulse"
                                  />
                                </g>
                              )}
