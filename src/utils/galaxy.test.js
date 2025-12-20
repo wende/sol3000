@@ -2,21 +2,59 @@ import { describe, it, expect } from 'vitest';
 import { generateGalaxy, CENTER_X, CENTER_Y } from './galaxy';
 
 describe('generateGalaxy', () => {
-  describe('Bug #1: No Player ownership on generation', () => {
-    it('should never assign Player ownership to any system', () => {
-      // Run multiple times to catch random assignment bugs
+  describe('Home system generation', () => {
+    it('should always generate exactly one Player-owned home system', () => {
       for (let i = 0; i < 10; i++) {
         const { systems } = generateGalaxy();
         const playerSystems = systems.filter(s => s.owner === 'Player');
 
-        expect(playerSystems).toHaveLength(0);
+        expect(playerSystems).toHaveLength(1);
+        expect(playerSystems[0].isHomeSystem).toBe(true);
+        expect(playerSystems[0].name).toBe('Sol');
       }
     });
 
-    it('should only have Enemy or Unclaimed systems', () => {
-      const { systems } = generateGalaxy();
+    it('should always generate home system as G-class star', () => {
+      for (let i = 0; i < 10; i++) {
+        const { systems } = generateGalaxy();
+        const homeSystem = systems.find(s => s.isHomeSystem);
 
-      systems.forEach(system => {
+        expect(homeSystem.spectralClass).toBe('G');
+      }
+    });
+
+    it('should generate home system with 3-6 planets', () => {
+      for (let i = 0; i < 20; i++) {
+        const { systems } = generateGalaxy();
+        const homeSystem = systems.find(s => s.isHomeSystem);
+
+        expect(homeSystem.planetCount).toBeGreaterThanOrEqual(3);
+        expect(homeSystem.planetCount).toBeLessThanOrEqual(6);
+        expect(homeSystem.planets.length).toBe(homeSystem.planetCount);
+      }
+    });
+
+    it('should have exactly one Terrestrial planet at position 2, 3, or 4', () => {
+      for (let i = 0; i < 20; i++) {
+        const { systems } = generateGalaxy();
+        const homeSystem = systems.find(s => s.isHomeSystem);
+        const terrestrialPlanets = homeSystem.planets.filter(p => p.type === 'Terrestrial');
+
+        expect(terrestrialPlanets).toHaveLength(1);
+
+        // Find the index of the terrestrial planet (0-indexed)
+        const terrestrialIndex = homeSystem.planets.findIndex(p => p.type === 'Terrestrial');
+        // Position 2, 3, or 4 means index 1, 2, or 3
+        expect(terrestrialIndex).toBeGreaterThanOrEqual(1);
+        expect(terrestrialIndex).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it('should only have Enemy or Unclaimed for non-home systems', () => {
+      const { systems } = generateGalaxy();
+      const nonHomeSystems = systems.filter(s => !s.isHomeSystem);
+
+      nonHomeSystems.forEach(system => {
         expect(['Enemy', 'Unclaimed']).toContain(system.owner);
       });
     });
