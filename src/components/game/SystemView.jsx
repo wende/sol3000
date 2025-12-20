@@ -78,12 +78,16 @@ export const SystemView = (props) => {
       </div>
 
       {/* Right Area: Visualization */}
-      <div class="flex-1 relative overflow-hidden bg-black flex items-center">
+      <div class="flex-1 relative overflow-hidden bg-black">
          {/* Scrollable container for the visualization */}
-         <div class="w-full h-full overflow-x-auto overflow-y-hidden flex items-center custom-scrollbar">
-            
-            <div class="h-full flex items-center min-w-max px-12 relative">
-               
+         <div class="w-full h-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+
+            {/* Position star at exact center of viewport (accounting for sidebar) */}
+            <div class="min-w-max px-12 relative" style={{
+              'padding-top': 'calc(50vh - 300px)',
+              'padding-bottom': 'calc(50vh - 300px)'
+            }}>
+
                <svg height="600" width={600 + (system().planets.length * 120)} class="overflow-visible">
                  <defs>
                     <filter id="star-glow" x="-50%" y="-50%" width="200%" height="200%">
