@@ -17,6 +17,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         blackhole: resolve(__dirname, 'blackhole.html'),
+        hexgrid: resolve(__dirname, 'hex-grid.html'),
       },
     },
   },
