@@ -1,5 +1,14 @@
-import { Show, createMemo } from 'solid-js';
+import { createMemo } from 'solid-js';
 import { Shield } from 'lucide-solid';
+
+const TETHER_STATE = {
+  READY: 'READY',
+  NEEDS_SCAN: 'NEEDS_SCAN',
+  INSUFFICIENT_CREDITS: 'INSUFFICIENT_CREDITS',
+  BLOCKED_BY_OTHER: 'BLOCKED_BY_OTHER',
+  UNDER_CONSTRUCTION: 'UNDER_CONSTRUCTION',
+  BUILT: 'BUILT',
+};
 
 /**
  * @typedef {Object} TetherInfoPanelProps
@@ -13,38 +22,37 @@ import { Shield } from 'lucide-solid';
  * @param {TetherInfoPanelProps} props
  */
 export const TetherInfoPanel = (props) => {
-  // Check if both systems are scanned (Player-owned)
-  const bothScanned = createMemo(() => {
-    return props.tether.source.owner === 'Player' && props.tether.target.owner === 'Player';
-  });
+  const tetherState = createMemo(() => {
+    if (props.gameState.builtFTLs().has(props.tether.id)) {
+      return TETHER_STATE.BUILT;
+    }
 
-  // Check if player has enough credits
-  const hasCredits = createMemo(() => {
-    return props.gameState.resources().credits >= 20;
-  });
-
-  // Check if this tether is under construction
-  const isUnderConstruction = createMemo(() => {
     const construction = props.gameState.ftlConstruction();
-    if (!construction) return false;
-    return construction.tetherId === props.tether.id;
+    if (construction && construction.tetherId === props.tether.id) {
+      return TETHER_STATE.UNDER_CONSTRUCTION;
+    }
+
+    const bothScanned = props.tether.source.owner === 'Player' && props.tether.target.owner === 'Player';
+    if (!bothScanned) {
+      return TETHER_STATE.NEEDS_SCAN;
+    }
+
+    if (props.gameState.resources().credits < 20) {
+      return TETHER_STATE.INSUFFICIENT_CREDITS;
+    }
+
+    if (construction) {
+      return TETHER_STATE.BLOCKED_BY_OTHER;
+    }
+
+    return TETHER_STATE.READY;
   });
 
-  // Check if any FTL is being constructed (blocks building another)
-  const isConstructingAny = createMemo(() => {
-    return props.gameState.ftlConstruction() !== null;
-  });
-
-  // Get construction duration in seconds for CSS animation
-  const constructionDurationSec = () => {
+  // Track the active construction duration for the progress animation
+  const constructionDurationSec = createMemo(() => {
     const construction = props.gameState.ftlConstruction();
     if (!construction || construction.tetherId !== props.tether.id) return 0;
     return construction.duration / 1000;
-  };
-
-  // Check if button should be disabled
-  const isDisabled = createMemo(() => {
-    return !bothScanned() || !hasCredits() || isConstructingAny();
   });
 
   // Handler for building FTL
@@ -58,6 +66,96 @@ export const TetherInfoPanel = (props) => {
   // Handler for cancelling FTL construction
   const handleCancelConstruction = () => {
     props.gameState.cancelFTLConstruction();
+  };
+
+  const renderBuildButton = (disabled) => (
+    <button
+      class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      onClick={handleBuildFTL}
+      disabled={disabled}
+    >
+      BUILD FTL (20 CR)
+    </button>
+  );
+
+  const renderActionPanel = () => {
+    const state = tetherState();
+
+    switch (state) {
+      case TETHER_STATE.BUILT:
+        return (
+          <div class="p-4 bg-green-500/10 rounded">
+            <p class="text-xs text-green-300 text-center">FTL ROUTE ESTABLISHED</p>
+          </div>
+        );
+      case TETHER_STATE.UNDER_CONSTRUCTION:
+        return (
+          <>
+            <div class="p-4 bg-white/5 rounded space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 tracking-widest">CONSTRUCTING FTL</span>
+                <span class="text-xs text-white font-mono ftl-countdown" style={{ '--ftl-duration': `${constructionDurationSec()}s` }}>
+                  {Math.ceil(constructionDurationSec())}s
+                </span>
+              </div>
+              <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-white rounded-full ftl-progress-bar"
+                  style={{
+                    animation: `ftlProgressFill ${constructionDurationSec()}s linear forwards`
+                  }}
+                />
+              </div>
+              <div class="text-center">
+                <span class="text-xs text-gray-400">Building FTL tether...</span>
+              </div>
+            </div>
+            <button
+              class="w-full bg-red-500/20 text-red-300 py-2 text-xs tracking-[0.2em] hover:bg-red-500/30 transition-colors border border-red-500/30"
+              onClick={handleCancelConstruction}
+            >
+              CANCEL CONSTRUCTION
+            </button>
+          </>
+        );
+      case TETHER_STATE.NEEDS_SCAN:
+        return (
+          <>
+            {renderBuildButton(true)}
+            <div class="p-3 bg-red-500/10 rounded">
+              <p class="text-xs text-red-300 text-center">
+                Both systems must be scanned before building FTL
+              </p>
+            </div>
+          </>
+        );
+      case TETHER_STATE.INSUFFICIENT_CREDITS:
+        return (
+          <>
+            {renderBuildButton(true)}
+            <div class="p-3 bg-yellow-500/10 rounded">
+              <p class="text-xs text-yellow-300 text-center">
+                Insufficient credits
+              </p>
+            </div>
+          </>
+        );
+      case TETHER_STATE.BLOCKED_BY_OTHER:
+        return (
+          <>
+            {renderBuildButton(true)}
+            <div class="p-3 bg-blue-500/10 rounded">
+              <p class="text-xs text-blue-300 text-center">
+                Another FTL tether is under construction
+              </p>
+            </div>
+          </>
+        );
+      case TETHER_STATE.READY:
+        return renderBuildButton(false);
+      default:
+        return null;
+    }
   };
 
   return (
@@ -118,79 +216,7 @@ export const TetherInfoPanel = (props) => {
 
       {/* Build FTL Action */}
       <div class="space-y-3 pt-4">
-        <Show
-          when={!props.gameState.builtFTLs().has(props.tether.id)}
-          fallback={
-            <div class="p-4 bg-green-500/10 rounded">
-              <p class="text-xs text-green-300 text-center">FTL ROUTE ESTABLISHED</p>
-            </div>
-          }
-        >
-          {/* Show construction progress if this tether is being built */}
-          <Show
-            when={isUnderConstruction()}
-            fallback={
-              <>
-                <button
-                  class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleBuildFTL}
-                  disabled={isDisabled()}
-                >
-                  BUILD FTL (20 CR)
-                </button>
-                <Show when={!bothScanned()}>
-                  <div class="p-3 bg-red-500/10 rounded">
-                    <p class="text-xs text-red-300 text-center">
-                      Both systems must be scanned before building FTL
-                    </p>
-                  </div>
-                </Show>
-                <Show when={bothScanned() && !hasCredits()}>
-                  <div class="p-3 bg-yellow-500/10 rounded">
-                    <p class="text-xs text-yellow-300 text-center">
-                      Insufficient credits
-                    </p>
-                  </div>
-                </Show>
-                <Show when={bothScanned() && hasCredits() && isConstructingAny()}>
-                  <div class="p-3 bg-blue-500/10 rounded">
-                    <p class="text-xs text-blue-300 text-center">
-                      Another FTL tether is under construction
-                    </p>
-                  </div>
-                </Show>
-              </>
-            }
-          >
-            {/* Construction Progress UI */}
-            <div class="p-4 bg-white/5 rounded space-y-3">
-              <div class="flex justify-between items-center">
-                <span class="text-[10px] text-gray-400 tracking-widest">CONSTRUCTING FTL</span>
-                <span class="text-xs text-white font-mono ftl-countdown" style={{ '--ftl-duration': `${constructionDurationSec()}s` }}>
-                  {Math.ceil(constructionDurationSec())}s
-                </span>
-              </div>
-              {/* Progress bar - uses CSS animation */}
-              <div class="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-white rounded-full ftl-progress-bar"
-                  style={{
-                    'animation': `ftlProgressFill ${constructionDurationSec()}s linear forwards`
-                  }}
-                />
-              </div>
-              <div class="text-center">
-                <span class="text-xs text-gray-400">Building FTL tether...</span>
-              </div>
-            </div>
-            <button
-              class="w-full bg-red-500/20 text-red-300 py-2 text-xs tracking-[0.2em] hover:bg-red-500/30 transition-colors border border-red-500/30"
-              onClick={handleCancelConstruction}
-            >
-              CANCEL CONSTRUCTION
-            </button>
-          </Show>
-        </Show>
+        {renderActionPanel()}
       </div>
     </>
   );
