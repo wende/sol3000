@@ -1,6 +1,8 @@
 import { Show, For, createMemo } from 'solid-js';
 import { Shield, Rocket, Crosshair } from 'lucide-solid';
 import { ProgressBar } from '../common/ProgressBar';
+import { StatBlock } from '../common/StatBlock';
+import { StatLabel } from '../common/StatLabel';
 import { ConstructionQueueItem } from './ConstructionQueueItem';
 import { getScanInfo, SCAN_COST } from '../../operations/scan';
 
@@ -74,37 +76,28 @@ export const SystemOverviewPanel = (props) => {
             : 0;
 
           return (
-            <div class="pb-6">
-              <span class="text-[10px] text-gray-500 tracking-widest block mb-3">METALS MARKET</span>
+            <StatBlock label="METALS MARKET">
               <div class="flex items-center justify-between p-3 rounded-sm">
-                <div class="flex flex-col">
-                  <span class="text-xs text-gray-400 tracking-widest">ROLE</span>
-                  <span class="text-sm text-white">
-                    {isSupply ? 'SUPPLY' : 'DEMAND'}
-                  </span>
-                </div>
-                <div class="text-right">
-                  <span class="text-xs text-gray-400 tracking-widest block">
-                    {isSupply ? 'EXPORTED' : 'SATISFIED'}
-                  </span>
-                  <span class="text-lg text-white">
-                    {flowAmount}/{total}
-                  </span>
-                </div>
+                <StatLabel label="ROLE" value={isSupply ? 'SUPPLY' : 'DEMAND'} />
+                <StatLabel
+                  label={isSupply ? 'EXPORTED' : 'SATISFIED'}
+                  value={`${flowAmount}/${total}`}
+                  large={true}
+                  class="items-end text-right"
+                />
               </div>
               <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
                 {isSupply
                   ? 'Supply exports Metals to connected demand systems.'
                   : 'Demand pays more when unmet and less when satisfied.'}
               </p>
-            </div>
+            </StatBlock>
           );
         })()}
       </Show>
 
       {/* System Ownership */}
-      <div class="pb-6">
-        <span class="text-[10px] text-gray-500 tracking-widest block mb-3">SYSTEM CONTROL</span>
+      <StatBlock label="SYSTEM CONTROL">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
             <Shield
@@ -134,12 +127,11 @@ export const SystemOverviewPanel = (props) => {
             <div class="text-[10px] bg-white/10 text-white px-2 py-1 rounded">SECURE</div>
           </Show>
         </div>
-      </div>
+      </StatBlock>
 
       {/* Construction Queue */}
       <Show when={props.system.owner === 'Player' && props.system.constructionQueue?.length > 0}>
-        <div class="pb-6">
-          <span class="text-[10px] text-gray-500 tracking-widest block mb-3">CONSTRUCTION</span>
+        <StatBlock label="CONSTRUCTION">
           <For each={props.system.constructionQueue}>
             {(item, index) => (
               <ConstructionQueueItem
@@ -149,13 +141,12 @@ export const SystemOverviewPanel = (props) => {
               />
             )}
           </For>
-        </div>
+        </StatBlock>
       </Show>
 
       {/* Docked Ships */}
       <Show when={props.system.owner === 'Player' && dockedShipsHere().length > 0}>
-        <div class="pb-6">
-          <span class="text-[10px] text-gray-500 tracking-widest block mb-3">DOCKED SHIPS</span>
+        <StatBlock label="DOCKED SHIPS">
           <div class="flex items-center justify-between p-3 bg-white/5 rounded">
             <div class="flex items-center gap-2">
               <Rocket size={16} class="text-white" />
@@ -168,7 +159,7 @@ export const SystemOverviewPanel = (props) => {
               LAUNCH
             </button>
           </div>
-        </div>
+        </StatBlock>
       </Show>
 
       {/* Action Buttons - Player System */}

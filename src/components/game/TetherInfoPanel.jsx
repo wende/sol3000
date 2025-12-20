@@ -1,5 +1,7 @@
 import { createMemo } from 'solid-js';
 import { Shield } from 'lucide-solid';
+import { StatBlock } from '../common/StatBlock';
+import { StatLabel } from '../common/StatLabel';
 
 const TETHER_STATE = {
   READY: 'READY',
@@ -161,30 +163,23 @@ export const TetherInfoPanel = (props) => {
   return (
     <>
       {/* FTL Route Stats */}
-      <div class="pb-6">
-        <span class="text-[10px] text-gray-500 tracking-widest block mb-3">FTL ROUTE INFO</span>
+      <StatBlock label="FTL ROUTE INFO">
         <div class="grid grid-cols-2 gap-4">
           <div class="p-4 bg-white/5 rounded">
-            <span class="text-[10px] text-gray-500 tracking-widest block mb-1">DISTANCE</span>
-            <span class="text-xl font-light">{props.tether.distance} LY</span>
+            <StatLabel label="DISTANCE" value={`${props.tether.distance} LY`} size="xl" />
           </div>
           <div class="p-4 bg-white/5 rounded">
-            <span class="text-[10px] text-gray-500 tracking-widest block mb-1">TRAVEL TIME</span>
-            <span class="text-xl font-light">6s</span>
+            <StatLabel label="TRAVEL TIME" value="6s" size="xl" />
           </div>
         </div>
-      </div>
+      </StatBlock>
 
       {/* Connected Systems */}
-      <div class="pb-6">
-        <span class="text-[10px] text-gray-500 tracking-widest block mb-3">CONNECTED SYSTEMS</span>
+      <StatBlock label="CONNECTED SYSTEMS">
         <div class="space-y-3">
           {/* Source System */}
           <div class="p-4 bg-white/5 rounded flex items-center justify-between">
-            <div>
-              <span class="text-[10px] text-gray-500 tracking-widest block mb-1">FROM</span>
-              <span class="text-lg font-light">{props.tether.source.name}</span>
-            </div>
+            <StatLabel label="FROM" value={props.tether.source.name} large={true} />
             <Shield
               size={16}
               class={props.tether.source.owner === 'Player' ? 'text-white' : props.tether.source.owner === 'Enemy' ? 'text-red-400' : 'text-gray-400'}
@@ -193,26 +188,22 @@ export const TetherInfoPanel = (props) => {
 
           {/* Target System */}
           <div class="p-4 bg-white/5 rounded flex items-center justify-between">
-            <div>
-              <span class="text-[10px] text-gray-500 tracking-widest block mb-1">TO</span>
-              <span class="text-lg font-light">{props.tether.target.name}</span>
-            </div>
+            <StatLabel label="TO" value={props.tether.target.name} large={true} />
             <Shield
               size={16}
               class={props.tether.target.owner === 'Player' ? 'text-white' : props.tether.target.owner === 'Enemy' ? 'text-red-400' : 'text-gray-400'}
             />
           </div>
         </div>
-      </div>
+      </StatBlock>
 
       {/* Route Description */}
-      <div>
-        <span class="text-[10px] text-gray-500 tracking-widest block mb-3">DATA LOG</span>
+      <StatBlock label="DATA LOG" class="pb-0">
         <p class="text-sm text-gray-300 leading-relaxed">
           FTL corridor connecting {props.tether.source.name} to {props.tether.target.name}.
           Ships can traverse this route using hyperspace jump technology.
         </p>
-      </div>
+      </StatBlock>
 
       {/* Build FTL Action */}
       <div class="space-y-3 pt-4">

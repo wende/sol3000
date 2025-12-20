@@ -1,6 +1,7 @@
 import { Show } from 'solid-js';
 import { GlassPanel } from '../common/GlassPanel';
 import { ProgressBar } from '../common/ProgressBar';
+import { StatBlock } from '../common/StatBlock';
 import { ResourceStat } from './ResourceStat';
 import { EnergyStat } from './EnergyStat';
 
@@ -60,8 +61,7 @@ export const StatsPanel = (props) => {
       <div class="my-6" />
 
       {/* Dominion */}
-      <div class="mb-6">
-        <div class="text-[10px] text-gray-500 tracking-widest mb-2">DOMINION</div>
+      <StatBlock label="DOMINION">
         <div class="flex items-end justify-between mb-2">
           <span id="stats-dominion-value" class="text-lg text-white font-light">
             {props.systemsOwned} <span class="text-xs text-gray-500">SYS</span>
@@ -72,18 +72,17 @@ export const StatsPanel = (props) => {
           progress={(props.systemsOwned / props.maxSystems) * 100}
           glow={true}
         />
-      </div>
+      </StatBlock>
 
       {/* Tech Research Progress */}
       <Show when={props.tech?.current}>
-        <div class="mb-6">
-          <div class="text-[10px] text-gray-500 tracking-widest mb-2">RESEARCHING</div>
+        <StatBlock label="RESEARCHING">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-blue-300">{props.tech?.current?.id?.charAt(0).toUpperCase() + props.tech?.current?.id?.slice(1).replace(/([A-Z])/g, ' $1').trim()}</span>
             <span class="text-[10px] text-gray-500">{Math.floor(techProgress()?.remaining || 0)}s</span>
           </div>
           <ProgressBar progress={techProgress()?.progress || 0} color="#60a5fa" />
-        </div>
+        </StatBlock>
       </Show>
 
     </GlassPanel>

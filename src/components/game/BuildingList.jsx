@@ -1,5 +1,6 @@
 import { Show, For, createSignal, onCleanup } from 'solid-js';
 import { Pickaxe, Zap, Coins, Rocket, Factory } from 'lucide-solid';
+import { StatBlock } from '../common/StatBlock';
 import { BUILDINGS, COLONY_SHIP, getBuildingCost } from '../../utils/gameState';
 import { formatTime } from '../../utils/format';
 import { ProgressBar } from '../common/ProgressBar';
@@ -238,9 +239,7 @@ export function BuildingList(props) {
 
       {/* Ship Construction Section */}
       <Show when={canBuildShips()}>
-        <div class="mt-6 pt-6">
-          <h3 class="text-xs text-gray-500 tracking-widest mb-4">SHIP CONSTRUCTION</h3>
-
+        <StatBlock label="SHIP CONSTRUCTION" class="mt-6 pt-6">
           <GlassCard variant={colonyShipQueueStatus().isActive ? 'active' : colonyShipQueueStatus().isQueued ? 'queued' : 'default'} interactive={true}>
             <div class="building-icon">
               <div class="icon-placeholder">
@@ -294,7 +293,7 @@ export function BuildingList(props) {
               </Show>
             </div>
           </GlassCard>
-        </div>
+        </StatBlock>
       </Show>
 
       <Show when={!canBuildShips()}>
