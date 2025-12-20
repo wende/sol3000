@@ -19,6 +19,7 @@ import { SystemProgressRing } from './SystemProgressRing';
  * @property {boolean} shouldFade - Whether the system should fade out (fog of war transition)
  * @property {boolean} shouldFadeIn - Whether the system should fade in (newly revealed)
  * @property {number} zoomLevel - Current zoom level for LOD
+ * @property {boolean} [forceLowLOD] - Force low LOD during exit animation to prevent flicker
  * @property {Function} onClick - Click handler
  * @property {Function} onDoubleClick - Double-click handler
  * @property {Object} [satisfaction] - Trade flow satisfaction data { type, ratio, used/satisfied, total }
@@ -38,7 +39,9 @@ export const StarSystem = (props) => {
   const hasMetalsDemand = () => (metals()?.demand || 0) > 0;
 
   // Simple LOD class based on zoom level (only applies when zoomed out)
+  // Force low LOD during exit animation to prevent flicker from heavy star rendering
   const lodClass = () => {
+    if (props.forceLowLOD) return 'lod-low';
     if (props.zoomLevel < 0.2) return 'lod-ultra-low';
     if (props.zoomLevel < 0.4) return 'lod-low';
     return '';

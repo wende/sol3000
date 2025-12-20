@@ -44,6 +44,7 @@ export const GalaxyMap = (props) => {
   const ZOOM_UPDATE_INTERVAL = 50; // ms - debounce zoom level updates
   const [transitioningId, setTransitioningId] = createSignal(null);
   let isAnimatingZoom = false; // Flag to skip zoom level updates during animated transitions
+  const [isExitingSystemView, setIsExitingSystemView] = createSignal(false); // Flag to force low LOD during exit
   let lastViewState = 'galaxy';
   let lastFocusedSystem = null;
   const BASE_MANUAL_MIN_SCALE = 0.1; // Values lifted from main branch
@@ -239,6 +240,9 @@ export const GalaxyMap = (props) => {
     }
 
     if (lastViewState === 'system' && currentView === 'galaxy') {
+      // Force low LOD during exit animation to prevent flicker from heavy star rendering
+      setIsExitingSystemView(true);
+
       // Start the return animation from the full cinematic zoom-out.
       zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, SYSTEM_VIEW_SCALE]);
 
@@ -251,12 +255,15 @@ export const GalaxyMap = (props) => {
         transition
           .on('end.manualZoomLimits', () => {
             zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+            setIsExitingSystemView(false);
           })
           .on('interrupt.manualZoomLimits', () => {
             zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+            setIsExitingSystemView(false);
           });
       } else {
         zoomBehavior.scaleExtent([MANUAL_MIN_SCALE, MANUAL_MAX_SCALE]);
+        setIsExitingSystemView(false);
       }
     }
 
@@ -612,6 +619,7 @@ export const GalaxyMap = (props) => {
               shouldFade={props.fogTransitioning && !isSystemVisible(sys.id)}
               shouldFadeIn={isNewlyRevealed(sys.id)}
               zoomLevel={props.zoomLevel}
+              forceLowLOD={isExitingSystemView()}
               onClick={(e) => handleSystemClick(e, sys)}
               onDoubleClick={(e) => handleSystemDoubleClick(e, sys)}
               satisfaction={props.tradeFlows?.systemSatisfaction?.get(sys.id)}
