@@ -212,13 +212,6 @@ export default function App() {
           50% { opacity: 1; }
         }
 
-        /* Resource tick animation */
-        @keyframes resourceTick {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.02); }
-          100% { transform: scale(1); }
-        }
-
         /* Ship movement animation */
         @keyframes shipMove {
           0%, 100% { transform: translateY(0); }

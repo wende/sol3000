@@ -12,6 +12,7 @@ export const ResourceIconShowcase = () => {
     { type: 'nobleGases', label: 'Noble Gases', description: 'Propulsion technology (Xe, Kr, Ar)' },
     { type: 'rareEarths', label: 'Rare Earths', description: 'Electronics and sensors (Lanthanides, Y)' },
     { type: 'isotopes', label: 'Isotopes', description: 'Power generation and fusion (He-3, U, D)' },
+    { type: 'energy', label: 'Energy', description: 'Power grid capacity' },
     { type: 'exotics', label: 'Exotics', description: 'End-game wonders and artifacts' },
     { type: 'credits', label: 'Credits', description: 'Interstellar currency' }
   ];

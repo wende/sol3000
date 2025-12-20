@@ -19,6 +19,7 @@ import { GlassPanel } from './components/common/GlassPanel';
 import { ProgressBar } from './components/common/ProgressBar';
 import { Modal } from './components/common/Modal';
 import { ResourceIcon } from './components/common/ResourceIcon';
+import { Resource } from './components/common/Resource';
 import { Star, getStarColor } from './components/game/Star';
 import { StarSystem } from './components/game/StarSystem';
 import { SystemProgressRing } from './components/game/SystemProgressRing';
@@ -739,6 +740,36 @@ function ComponentsApp() {
               <ProgressBar progress={75} variant="glass" label="75% Complete" />
             </div>
           </Modal>
+          </Show>
+        </section>
+
+        {/* Resource Component Section */}
+        <section id="section-resource-component">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('resource-component')}
+          >
+            <span>RESOURCE DISPLAY (Resource Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('resource-component') ? '' : 'rotate-180'}`}
+            />
+          </h2>
+          <Show when={!isCollapsed('resource-component')}>
+          <GlassPanel class="p-8 space-y-8">
+            <p class="text-xs text-gray-500 mb-4">
+              Standardized resource display with icon, value, and optional rate.
+              Includes built-in animations for value updates.
+            </p>
+            
+            <div class="grid grid-cols-2 gap-8">
+              <Resource type="metals" value={1540} label="Metals" size={48} />
+              <Resource type="credits" value={50000} rate={125} label="Credits" size={48} animate={true} />
+              <Resource type="volatiles" value={320} rate={-5} size={48} />
+              <Resource type="isotopes" value={100} size={48} />
+              <Resource type="energy" value={75} label="Energy" size={48} />
+            </div>
+          </GlassPanel>
           </Show>
         </section>
 
