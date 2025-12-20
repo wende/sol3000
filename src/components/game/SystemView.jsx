@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, createMemo } from 'solid-js';
+import { createSignal, createEffect, onCleanup, createMemo, Show } from 'solid-js';
 import { Button } from '../common/Button';
 import { GlassPanel } from '../common/GlassPanel';
 import { getStarColor } from './Star';
@@ -13,6 +13,8 @@ export const SystemView = (props) => {
   const system = () => props.system;
 
   const [windowWidth, setWindowWidth] = createSignal(window.innerWidth);
+  const [canScrollRight, setCanScrollRight] = createSignal(false);
+  let planetListRef;
 
   createEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -20,23 +22,38 @@ export const SystemView = (props) => {
     onCleanup(() => window.removeEventListener('resize', handleResize));
   });
 
+  const checkScrollRight = () => {
+    if (planetListRef) {
+      const { scrollLeft, scrollWidth, clientWidth } = planetListRef;
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  createEffect(() => {
+    // Re-check when system changes
+    system();
+    // Defer to ensure DOM is ready
+    setTimeout(checkScrollRight, 100);
+  });
+
   const spacing = createMemo(() => {
     const s = system();
-    if (!s) return 150;
-    
-    const count = s.planets.length;
-    if (count <= 1) return 150;
+    if (!s) return 90;
 
+    const count = s.planets.length;
+    if (count <= 1) return 90;
+
+    // Reduced spacing by 40% for tighter orbits
     // We prioritize legibility over fitting since we have horizontal scrolling.
-    // Ensure enough space so text labels (approx 100-120px) don't overlap.
-    const availableWidth = windowWidth() * 0.8; 
+    const availableWidth = windowWidth() * 0.8;
     const starRadius = s.size * 10;
-    const startOffset = 240 + starRadius + 150; // CenterX + Star + First Gap
-    
+    const startOffset = 240 + starRadius + 90; // CenterX + Star + First Gap (reduced)
+
     const availableForSpacing = availableWidth - startOffset;
     const calculatedSpacing = availableForSpacing / (count - 1);
-    
-    return Math.min(300, Math.max(150, calculatedSpacing));
+
+    // Reduced max from 300 to 180, min from 150 to 90 (40% reduction)
+    return Math.min(180, Math.max(90, calculatedSpacing));
   });
   
   if (!system()) return null;
@@ -111,9 +128,9 @@ export const SystemView = (props) => {
       </div>
 
       {/* Right Area: Visualization */}
-      <div class="flex-1 relative overflow-hidden bg-black">
+      <div class="flex-1 relative overflow-hidden bg-black flex flex-col">
          {/* Scrollable container for the visualization */}
-         <div class="w-full h-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+         <div class="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
 
             {/* Position star at exact center of viewport (accounting for sidebar) */}
             <div class="min-w-max px-12 relative" style={{
@@ -154,7 +171,8 @@ export const SystemView = (props) => {
                     const centerX = 240;
                     const centerY = 300;
                     const starRadius = system().size * 10;
-                    const orbitRadius = starRadius + 120 + (i * spacing());
+                    // Reduced initial gap from 120 to 72 (40% reduction)
+                    const orbitRadius = starRadius + 72 + (i * spacing());
                     
                     // Angle span: +/- 35 degrees
                     const angle = 35;
@@ -239,6 +257,58 @@ export const SystemView = (props) => {
                </svg>
 
             </div>
+         </div>
+
+         {/* Planet List Panel - Bottom */}
+         <div class="relative border-t border-white/10 bg-black/60 backdrop-blur-md">
+            <div
+               ref={planetListRef}
+               class="flex gap-4 p-4 overflow-x-auto custom-scrollbar"
+               onScroll={checkScrollRight}
+            >
+               {system().planets?.map((planet, i) => (
+                  <div
+                     class={`flex-shrink-0 flex flex-col items-center p-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 ${planet.isHomePlanet ? 'bg-blue-500/10 ring-1 ring-blue-400/30' : 'bg-white/5'}`}
+                     onClick={() => {
+                        if (planet.isHomePlanet) {
+                           props.onPlanetSelect?.(planet.id);
+                        }
+                     }}
+                  >
+                     {/* Planet Visual */}
+                     <div class="relative mb-2">
+                        {planet.isHomePlanet && (
+                           <div class="absolute inset-0 -m-1 rounded-full ring-2 ring-blue-400/40 animate-pulse" />
+                        )}
+                        <svg width="48" height="48" viewBox="0 0 48 48">
+                           <circle
+                              cx="24"
+                              cy="24"
+                              r={Math.max(8, planet.radius * 2)}
+                              fill={planet.color}
+                              class="filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                           />
+                        </svg>
+                     </div>
+
+                     {/* Planet Info */}
+                     <span class="text-xs text-white font-mono tracking-wider">{planet.type.toUpperCase()}</span>
+                     <span class="text-[10px] text-gray-500 font-mono">{Math.round(planet.distance)} AU</span>
+                     <span class="text-[10px] text-gray-600 font-mono mt-1">#{i + 1}</span>
+                  </div>
+               ))}
+            </div>
+
+            {/* Scroll Right Indicator */}
+            <Show when={canScrollRight()}>
+               <div class="absolute right-0 top-0 bottom-0 w-16 pointer-events-none flex items-center justify-end pr-2 bg-gradient-to-l from-black/80 to-transparent">
+                  <div class="text-white/60 animate-pulse">
+                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 18l6-6-6-6" />
+                     </svg>
+                  </div>
+               </div>
+            </Show>
          </div>
       </div>
 
