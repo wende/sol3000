@@ -827,6 +827,20 @@ export function createGameState() {
   };
 
   /**
+   * Helper to initialize a fresh galaxy when loading fails or no save exists
+   */
+  const bootstrapNewGalaxy = () => {
+    console.log('✨ Bootstrapping new galaxy...');
+    const newGalaxy = generateGalaxy();
+    // Fix: Set home system ID immediately to prevent corruption check failure
+    const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
+    if (homeSystem) setHomeSystemId(homeSystem.id);
+    setGalaxyData(newGalaxy);
+    startGameLoop();
+    return false;
+  };
+
+  /**
    * Load game state from localStorage
    */
   const loadState = () => {
@@ -846,13 +860,7 @@ export function createGameState() {
           console.error('This usually means the save file was corrupted or truncated');
           alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThe save file could not be read. Starting a new game.\n\nTechnical details: ${parseError.message}`);
           localStorage.removeItem(STORAGE_KEY);
-          const newGalaxy = generateGalaxy();
-          // Fix: Set home system ID immediately to prevent corruption check failure
-          const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
-          if (homeSystem) setHomeSystemId(homeSystem.id);
-          setGalaxyData(newGalaxy);
-          startGameLoop();
-          return false;
+          return bootstrapNewGalaxy();
         }
 
         // Validate saved data - detect corruption
@@ -882,13 +890,7 @@ export function createGameState() {
           alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThis typically happens if the save was interrupted. Starting a new game.`);
 
           localStorage.removeItem(STORAGE_KEY);
-          const newGalaxy = generateGalaxy();
-          // Fix: Set home system ID immediately to prevent corruption check failure
-          const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
-          if (homeSystem) setHomeSystemId(homeSystem.id);
-          setGalaxyData(newGalaxy);
-          startGameLoop();
-          return false;
+          return bootstrapNewGalaxy();
         }
 
         console.log('✓ Save data validation passed');
@@ -961,13 +963,7 @@ export function createGameState() {
 
     // If no saved state, generate new galaxy
     console.log('📂 No saved game found, generating new galaxy');
-    const newGalaxy = generateGalaxy();
-    // Fix: Set home system ID immediately to prevent corruption check failure
-    const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
-    if (homeSystem) setHomeSystemId(homeSystem.id);
-    setGalaxyData(newGalaxy);
-    startGameLoop();
-    return false;
+    return bootstrapNewGalaxy();
   };
 
   /**
