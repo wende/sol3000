@@ -6,7 +6,7 @@ import { splitProps } from "solid-js";
  * @property {string} [class] - Additional CSS classes
  * @property {import("solid-js").JSX.Element} children - The content to render inside the panel
  * @property {import("solid-js").JSX.CSSProperties} [style] - Inline styles (use variant prop instead when possible)
- * @property {'default' | 'highlighted' | 'warning' | 'selected'} [variant='default'] - Visual variant of the panel
+ * @property {'default' | 'highlighted' | 'warning' | 'selected' | 'sidebar' | 'overlay'} [variant='default'] - Visual variant of the panel
  */
 
 /**
@@ -24,7 +24,9 @@ export const GlassPanel = (props) => {
     default: "rgba(0, 0, 0, 0.9)",
     highlighted: "rgba(59, 130, 246, 0.1)",
     warning: "rgba(239, 68, 68, 0.1)",
-    selected: "rgba(59, 130, 246, 0.15)"
+    selected: "rgba(59, 130, 246, 0.15)",
+    sidebar: "rgba(0, 0, 0, 0.4)",
+    overlay: "rgba(0, 0, 0, 0.6)"
   };
 
   // Define border classes for each variant
@@ -32,7 +34,9 @@ export const GlassPanel = (props) => {
     default: "",
     highlighted: "border border-blue-500/30",
     warning: "border border-red-500/30",
-    selected: "border border-blue-500/30"
+    selected: "border border-blue-500/30",
+    sidebar: "border-r border-white/10",
+    overlay: "border-t border-white/10"
   };
 
   return (

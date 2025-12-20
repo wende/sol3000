@@ -70,7 +70,7 @@ export const SystemView = (props) => {
     <div class="w-full h-full bg-black flex overflow-hidden">
       
       {/* Left Sidebar: UI & Info */}
-      <div class="w-1/3 flex-shrink-0 flex flex-col border-r border-white/10 bg-black/40 backdrop-blur-md relative z-20 slide-in-left">
+      <GlassPanel variant="sidebar" class="w-1/3 flex-shrink-0 flex flex-col relative z-20 slide-in-left">
         <div class="p-8 space-y-8 overflow-y-auto h-full custom-scrollbar">
           
           {/* Header */}
@@ -125,7 +125,7 @@ export const SystemView = (props) => {
           </div>
 
         </div>
-      </div>
+      </GlassPanel>
 
       {/* Right Area: Visualization */}
       <div class="flex-1 relative overflow-hidden bg-black flex flex-col">
@@ -260,7 +260,7 @@ export const SystemView = (props) => {
          </div>
 
          {/* Planet List Panel - Bottom */}
-         <div class="relative border-t border-white/10 bg-black/60 backdrop-blur-md">
+         <GlassPanel variant="overlay" class="relative">
             <div
                ref={planetListRef}
                class="flex gap-4 p-4 overflow-x-auto custom-scrollbar"
@@ -309,7 +309,7 @@ export const SystemView = (props) => {
                   </div>
                </div>
             </Show>
-         </div>
+         </GlassPanel>
       </div>
 
     </div>

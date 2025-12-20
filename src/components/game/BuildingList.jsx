@@ -3,6 +3,8 @@ import { Pickaxe, Zap, Coins, Rocket, Factory } from 'lucide-solid';
 import { BUILDINGS, COLONY_SHIP, getBuildingCost } from '../../utils/gameState';
 import { formatTime } from '../../utils/format';
 import { ProgressBar } from '../common/ProgressBar';
+import { GlassCard } from '../common/GlassCard';
+import { MiniPanel } from '../common/MiniPanel';
 import './BuildingList.css';
 
 /**
@@ -111,7 +113,7 @@ export function BuildingList(props) {
   return (
     <div id="building-list-container" class="building-list-container">
       {/* Resource Header */}
-      <div class="resource-bar glass-panel-inset">
+      <MiniPanel class="resource-bar">
         <div class="resource-item">
           <Pickaxe size={12} class="text-white" />
           <span class="res-label">ORE</span>
@@ -129,7 +131,7 @@ export function BuildingList(props) {
           <span class="res-label">CREDITS</span>
           <span id="res-credits-value" class="res-value">{Math.floor(resources().credits)}</span>
         </div>
-      </div>
+      </MiniPanel>
 
       {/* Buildings Grid */}
       <div class="building-grid">
@@ -162,9 +164,10 @@ export function BuildingList(props) {
             };
 
             return (
-              <div
+              <GlassCard
                 id={`building-row-${building.id}`}
-                class={`building-row glass-panel-row ${activelyBuilding() ? 'building-in-progress' : ''} ${queued() ? 'building-queued' : ''}`}
+                variant={activelyBuilding() ? 'active' : queued() ? 'queued' : 'default'}
+                interactive={true}
               >
                 <div class="building-icon">
                   <div class="icon-placeholder">
@@ -227,7 +230,7 @@ export function BuildingList(props) {
                     <span class="cost-time">{formatTime(building.buildTime)}</span>
                   </Show>
                 </div>
-              </div>
+              </GlassCard>
             );
           }}
         </For>
@@ -238,7 +241,7 @@ export function BuildingList(props) {
         <div class="mt-6 pt-6">
           <h3 class="text-xs text-gray-500 tracking-widest mb-4">SHIP CONSTRUCTION</h3>
 
-          <div class={`building-row glass-panel-row ${colonyShipQueueStatus().isActive ? 'building-in-progress' : ''} ${colonyShipQueueStatus().isQueued ? 'building-queued' : ''}`}>
+          <GlassCard variant={colonyShipQueueStatus().isActive ? 'active' : colonyShipQueueStatus().isQueued ? 'queued' : 'default'} interactive={true}>
             <div class="building-icon">
               <div class="icon-placeholder">
                 <Rocket size={24} class="text-white" />
@@ -290,7 +293,7 @@ export function BuildingList(props) {
                 <span class="cost-time">{formatTime(getShipBuildTime())}</span>
               </Show>
             </div>
-          </div>
+          </GlassCard>
         </div>
       </Show>
 
