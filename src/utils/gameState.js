@@ -115,6 +115,35 @@ export function createGameState() {
   // Trade flow calculation - connects supply systems to demand systems via built FTL routes
   const tradeFlows = createMemo(() => computeTradeFlows(galaxyData(), builtFTLs()));
 
+  // Helper to determine if we should show all systems (ignoring fog of war)
+  const shouldShowAllSystems = createMemo(() => {
+    const visibility = visibleSystems();
+    const hasHome = homeSystemId() !== null && homeSystemId() !== undefined;
+    
+    // Show all if:
+    // 1. No visibility data yet
+    // 2. No visible IDs (empty set)
+    // 3. No home system set (cinematic intro)
+    // 4. Fog transition is happening (fade out animation)
+    return !visibility?.visibleIds || 
+           visibility.visibleIds.size === 0 || 
+           !hasHome || 
+           fogTransitioning();
+  });
+
+  // Check if a system is visible (considering fog of war and "show all" state)
+  const isSystemVisible = (systemId) => {
+    if (shouldShowAllSystems()) return true;
+    return visibleSystems().visibleIds.has(systemId);
+  };
+
+  // Check if a route is visible
+  const isRouteVisible = (route) => {
+    if (shouldShowAllSystems()) return true;
+    const ids = visibleSystems().visibleIds;
+    return ids.has(route.source.id) && ids.has(route.target.id);
+  };
+
   // Game tick reference
   let tickInterval = null;
   let lastTickTime = Date.now();
@@ -1157,6 +1186,9 @@ export function createGameState() {
     visibleSystems, // Fog of War - visible systems within 2 hops
     newlyRevealedIds, // Systems that just became visible (for fade-in animation)
     tradeFlows, // Trade flow allocation - { systemSatisfaction, routeThroughput }
+    isSystemVisible, // Check if a system is visible
+    isRouteVisible, // Check if a route is visible
+    shouldShowAllSystems, // Check if all systems should be shown (cinematic/transition)
 
     // Actions
     loadState,

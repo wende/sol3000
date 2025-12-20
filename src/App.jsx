@@ -352,6 +352,9 @@ export default function App() {
             ftlConstruction={gameState.ftlConstruction()}
             viewState={gameState.viewState()}
             viewSystemId={gameState.viewSystemId()}
+            isSystemVisible={gameState.isSystemVisible}
+            isRouteVisible={gameState.isRouteVisible}
+            shouldShowAllSystems={gameState.shouldShowAllSystems()}
           />
         </div>
 

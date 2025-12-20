@@ -309,44 +309,20 @@ export const GalaxyMap = (props) => {
   // Filter systems based on fog of war visibility
   // Show ALL systems when no home is set (cinematic intro) or during fog transition
   const visibleSystemsFiltered = createMemo(() => {
-    const visibility = props.visibleSystems;
-    // Note: homeSystemId can be 0 (Sol has id 0), so we check for null/undefined explicitly
-    const hasHome = props.homeSystemId !== null && props.homeSystemId !== undefined;
-    // Show all systems if no fog of war data OR no home system yet (intro) OR transitioning
-    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !hasHome || props.fogTransitioning) {
+    if (props.shouldShowAllSystems) {
       return props.data.systems;
     }
-    return props.data.systems.filter(s => visibility.visibleIds.has(s.id));
+    return props.data.systems.filter(s => props.isSystemVisible(s.id));
   });
-
-  // Check if a system is within fog of war visibility
-  const isSystemVisible = (systemId) => {
-    const visibility = props.visibleSystems;
-    if (!visibility?.visibleIds || visibility.visibleIds.size === 0) return true;
-    return visibility.visibleIds.has(systemId);
-  };
 
   // Filter routes to only show connections between visible systems
   // Show ALL routes when no home is set (cinematic intro) or during fog transition
   const visibleRoutesFiltered = createMemo(() => {
-    const visibility = props.visibleSystems;
-    // Note: homeSystemId can be 0 (Sol has id 0), so we check for null/undefined explicitly
-    const hasHome = props.homeSystemId !== null && props.homeSystemId !== undefined;
-    // Show all routes if no fog of war data OR no home system yet (intro) OR transitioning
-    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !hasHome || props.fogTransitioning) {
+    if (props.shouldShowAllSystems) {
       return props.data.routes;
     }
-    return props.data.routes.filter(r =>
-      visibility.visibleIds.has(r.source.id) && visibility.visibleIds.has(r.target.id)
-    );
+    return props.data.routes.filter(r => props.isRouteVisible(r));
   });
-
-  // Check if a route is within fog of war visibility
-  const isRouteVisible = (route) => {
-    const visibility = props.visibleSystems;
-    if (!visibility?.visibleIds || visibility.visibleIds.size === 0) return true;
-    return visibility.visibleIds.has(route.source.id) && visibility.visibleIds.has(route.target.id);
-  };
 
   // Check if a system is newly revealed (for fade-in animation)
   const isNewlyRevealed = (systemId) => {
@@ -527,12 +503,16 @@ export const GalaxyMap = (props) => {
                 (hasMetalsDemand(route.source) && hasMetalsSupply(route.target));
               const tradeReverse = hasMetalsDemand(route.source) && hasMetalsSupply(route.target);
 
+              // Check if route is visible in the current fog of war state (ignoring transition)
+              const isNaturallyVisible = props.visibleSystems?.visibleIds?.has(route.source.id) && 
+                                       props.visibleSystems?.visibleIds?.has(route.target.id);
+
               return (
                 <FTLRoute
                   route={route}
                   routeId={routeId}
-                  isVisible={isRouteVisible(route)}
-                  shouldFade={props.fogTransitioning && !isRouteVisible(route)}
+                  isVisible={props.isRouteVisible(route)}
+                  shouldFade={props.fogTransitioning && !isNaturallyVisible}
                   shouldFadeIn={isRouteNewlyRevealed(route)}
                   isSelected={props.selectedTetherId === routeId}
                   builtFTLs={props.builtFTLs}
@@ -616,7 +596,7 @@ export const GalaxyMap = (props) => {
               isSelected={props.selectedSystemId === sys.id}
               isHome={props.homeSystemId === sys.id}
               isTransitioning={transitioningId() === sys.id}
-              shouldFade={props.fogTransitioning && !isSystemVisible(sys.id)}
+              shouldFade={props.fogTransitioning && !props.visibleSystems?.visibleIds?.has(sys.id)}
               shouldFadeIn={isNewlyRevealed(sys.id)}
               zoomLevel={props.zoomLevel}
               forceLowLOD={isExitingSystemView()}
