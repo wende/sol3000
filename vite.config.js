@@ -4,7 +4,13 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
-    solid(),
+    solid({
+      babel: {
+        plugins: [
+          ["@locator/babel-jsx/dist", { env: "development" }],
+        ],
+      },
+    }),
   ],
   build: {
     rollupOptions: {
