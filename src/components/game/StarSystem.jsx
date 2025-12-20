@@ -37,6 +37,7 @@ export const StarSystem = (props) => {
   const hasMetalsSupply = () => (metals()?.supply || 0) > 0;
   const hasMetalsDemand = () => (metals()?.demand || 0) > 0;
 
+  // Simple LOD class based on zoom level (only applies when zoomed out)
   const lodClass = () => {
     if (props.zoomLevel < 0.2) return 'lod-ultra-low';
     if (props.zoomLevel < 0.4) return 'lod-low';

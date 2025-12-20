@@ -43,6 +43,7 @@ export const GalaxyMap = (props) => {
   let lastZoomUpdate = 0;
   const ZOOM_UPDATE_INTERVAL = 50; // ms - debounce zoom level updates
   const [transitioningId, setTransitioningId] = createSignal(null);
+  let isAnimatingZoom = false; // Flag to skip zoom level updates during animated transitions
   let lastViewState = 'galaxy';
   let lastFocusedSystem = null;
   const BASE_MANUAL_MIN_SCALE = 0.1; // Values lifted from main branch
@@ -63,6 +64,8 @@ export const GalaxyMap = (props) => {
       .clickDistance(5) // Allow up to 5px movement and still register as click
       .on('zoom', (e) => {
         d3.select(gRef).attr('transform', e.transform);
+        // Skip zoom level updates during animated transitions to prevent flicker
+        if (isAnimatingZoom) return;
         // Debounce zoom level updates for LOD to reduce re-renders
         const now = Date.now();
         if (now - lastZoomUpdate > ZOOM_UPDATE_INTERVAL) {
@@ -105,6 +108,9 @@ export const GalaxyMap = (props) => {
     const svg = d3.select(svgRef);
     svg.interrupt();
 
+    // Skip zoom level updates during the animation to prevent flicker
+    isAnimatingZoom = true;
+
     // Calculate center of viewport
     // Align with System View: Sidebar is 1/3 width, Star is at 240px + 48px padding
     const targetX = (window.innerWidth / 3) + 288;
@@ -119,7 +125,14 @@ export const GalaxyMap = (props) => {
     return svg.transition()
       .duration(duration)
       .ease(d3.easeExpInOut) // Smooth acceleration/deceleration
-      .call(zoomBehavior.transform, transform);
+      .call(zoomBehavior.transform, transform)
+      .on('end.zoomLevel', () => {
+        isAnimatingZoom = false;
+        props.setZoomLevel(targetScale);
+      })
+      .on('interrupt.zoomLevel', () => {
+        isAnimatingZoom = false;
+      });
   };
 
   // Reset view to show full galaxy (zoomed out)
@@ -130,13 +143,24 @@ export const GalaxyMap = (props) => {
 
     const svg = d3.select(svgRef);
     svg.interrupt();
+
+    // Skip zoom level updates during the animation to prevent flicker
+    isAnimatingZoom = true;
+
     const translateX = (window.innerWidth / 2) - (CENTER_X * targetScale);
     const translateY = (window.innerHeight / 2) - (CENTER_Y * targetScale);
 
     return svg.transition()
       .duration(duration)
       .ease(d3.easeCubicInOut)
-      .call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(targetScale));
+      .call(zoomBehavior.transform, d3.zoomIdentity.translate(translateX, translateY).scale(targetScale))
+      .on('end.zoomLevel', () => {
+        isAnimatingZoom = false;
+        props.setZoomLevel(targetScale);
+      })
+      .on('interrupt.zoomLevel', () => {
+        isAnimatingZoom = false;
+      });
   };
 
   // Track the system currently shown in System View so we can pan back to it on exit
@@ -170,15 +194,28 @@ export const GalaxyMap = (props) => {
       if (homeSystem && svgRef && zoomBehavior) {
         // Small delay to ensure DOM is ready
         homeZoomTimeoutId = setTimeout(() => {
+          // Skip zoom level updates during the animation to prevent flicker
+          isAnimatingZoom = true;
+
           // Use simpler zoom for initial home focus
           const svg = d3.select(svgRef);
+          const targetScale = 1.5;
           const transform = d3.zoomIdentity
             .translate(window.innerWidth / 2, window.innerHeight / 2)
-            .scale(1.5)
+            .scale(targetScale)
             .translate(-homeSystem.x, -homeSystem.y);
-          
-          svg.transition().duration(1200).call(zoomBehavior.transform, transform);
-          
+
+          svg.transition()
+            .duration(1200)
+            .call(zoomBehavior.transform, transform)
+            .on('end.zoomLevel', () => {
+              isAnimatingZoom = false;
+              props.setZoomLevel(targetScale);
+            })
+            .on('interrupt.zoomLevel', () => {
+              isAnimatingZoom = false;
+            });
+
           hasZoomedToHome = true;
           homeZoomTimeoutId = null;
         }, 100);
