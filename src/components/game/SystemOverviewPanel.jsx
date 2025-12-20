@@ -1,4 +1,4 @@
-import { Show, For } from 'solid-js';
+import { Show, For, createMemo } from 'solid-js';
 import { Shield, Rocket, Crosshair } from 'lucide-solid';
 import { ProgressBar } from '../common/ProgressBar';
 import { ConstructionQueueItem } from './ConstructionQueueItem';
@@ -25,6 +25,41 @@ export const SystemOverviewPanel = (props) => {
       s => s.status === 'docked' && s.systemId === props.system.id
     );
   };
+
+  const scanState = createMemo(() => {
+    const scanning = props.gameState.scanningSystem();
+    const isScanningThisSystem = scanning?.systemId === props.system.id;
+    const resources = props.gameState.resources();
+
+    if (isScanningThisSystem && scanning) {
+      const elapsed = props.now - scanning.startTime;
+      const progress = Math.min(100, (elapsed / scanning.duration) * 100);
+      const remainingSeconds = Math.max(0, Math.ceil((scanning.duration - elapsed) / 1000));
+
+      return {
+        hasActiveScan: true,
+        isScanningThisSystem: true,
+        progress,
+        remainingSeconds,
+        canAffordScan: resources.credits >= SCAN_COST,
+        scanInfo: null,
+      };
+    }
+
+    return {
+      hasActiveScan: Boolean(scanning),
+      isScanningThisSystem: false,
+      progress: 0,
+      remainingSeconds: 0,
+      canAffordScan: resources.credits >= SCAN_COST,
+      scanInfo: getScanInfo(
+        props.gameState.galaxyData(),
+        props.gameState.homeSystemId(),
+        props.system.id,
+        props.gameState.findPath
+      ),
+    };
+  });
 
   return (
     <>
@@ -153,52 +188,34 @@ export const SystemOverviewPanel = (props) => {
       <Show when={props.system.owner === 'Unclaimed'}>
         <div class="space-y-3 pt-4">
           {/* Scan Progress */}
-          <Show when={props.gameState.scanningSystem()?.systemId === props.system.id}>
-            {(() => {
-              const scan = props.gameState.scanningSystem();
-              const elapsed = props.now - scan.startTime;
-              const progress = Math.min(100, (elapsed / scan.duration) * 100);
-              const remaining = Math.max(0, Math.ceil((scan.duration - elapsed) / 1000));
-              return (
-                <div class="space-y-2">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[10px] text-gray-500 tracking-widest">SCANNING</span>
-                    <span class="text-[10px] text-gray-500">{remaining}s</span>
-                  </div>
-                  <ProgressBar progress={progress} variant="glass" />
-                  <button
-                    class="w-full bg-red-500/20 text-red-300 py-2 text-xs tracking-[0.2em] font-bold hover:bg-red-500/30 transition-colors"
-                    onClick={() => props.gameState.cancelScan()}
-                  >
-                    CANCEL SCAN
-                  </button>
-                </div>
-              );
-            })()}
-          </Show>
-
-          {/* Scan Button */}
-          <Show when={props.gameState.scanningSystem()?.systemId !== props.system.id}>
-            {(() => {
-              const scanInfo = getScanInfo(
-                props.gameState.galaxyData(),
-                props.gameState.homeSystemId(),
-                props.system.id,
-                props.gameState.findPath
-              );
-              return (
-                <button
-                  id="sidebar-scan-btn"
-                  class="w-full bg-white/10 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => props.gameState.scanSystem(props.system.id)}
-                  disabled={props.gameState.resources().credits < SCAN_COST || props.gameState.scanningSystem()}
-                >
-                  {props.gameState.scanningSystem()
-                    ? 'SCAN IN PROGRESS...'
-                    : `SCAN SYSTEM (${scanInfo.cost} CR, ${scanInfo.durationSeconds}s)`}
-                </button>
-              );
-            })()}
+          <Show
+            when={scanState().isScanningThisSystem}
+            fallback={
+              <button
+                id="sidebar-scan-btn"
+                class="w-full bg-white/10 text-white py-3 text-xs tracking-[0.2em] font-bold hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => props.gameState.scanSystem(props.system.id)}
+                disabled={!scanState().canAffordScan || scanState().hasActiveScan}
+              >
+                {scanState().hasActiveScan
+                  ? 'SCAN IN PROGRESS...'
+                  : `SCAN SYSTEM (${scanState().scanInfo.cost} CR, ${scanState().scanInfo.durationSeconds}s)`}
+              </button>
+            }
+          >
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-gray-500 tracking-widest">SCANNING</span>
+                <span class="text-[10px] text-gray-500">{scanState().remainingSeconds}s</span>
+              </div>
+              <ProgressBar progress={scanState().progress} variant="glass" />
+              <button
+                class="w-full bg-red-500/20 text-red-300 py-2 text-xs tracking-[0.2em] font-bold hover:bg-red-500/30 transition-colors"
+                onClick={() => props.gameState.cancelScan()}
+              >
+                CANCEL SCAN
+              </button>
+            </div>
           </Show>
         </div>
       </Show>
