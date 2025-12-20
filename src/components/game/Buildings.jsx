@@ -335,16 +335,18 @@ export const getRandomBuildingKey = () => {
  * @param {Object} props
  * @param {string} props.buildingKey - Key of the building to render
  * @param {number} props.size - Size of the building grid (default 40)
+ * @param {boolean} props.enableHover - Enable hover animations (default true)
  */
 export const Building = (props) => {
   const building = () => BUILDING_DEFINITIONS[props.buildingKey];
   const size = () => props.size || 40;
+  const enableHover = () => props.enableHover !== false;
 
   if (!building()) return null;
 
   return (
     <div
-      class={`construct-grid ${building().gridClass}`}
+      class={`construct-grid ${building().gridClass} ${enableHover() ? 'building-hover' : ''}`}
       style={{
         width: `${size()}px`,
         height: `${size()}px`,

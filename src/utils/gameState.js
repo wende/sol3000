@@ -33,6 +33,10 @@ export function createGameState() {
   const [viewSystemId, setViewSystemId] = createSignal(null);
   const [viewPlanetId, setViewPlanetId] = createSignal(null);
 
+  // Planet hex grid state (buildings and construction)
+  const [hexBuildings, setHexBuildings] = createSignal({}); // { '0,0': 'nexus', '1,0': 'framework', ... }
+  const [hexConstructionQueue, setHexConstructionQueue] = createSignal([]); // [{ hexId, buildingKey, startTime, duration }]
+
   // Real-time resource signals (energy is now capacity-based, not accumulated)
   const [resources, setResources] = createSignal({
     ore: 100,
@@ -172,6 +176,12 @@ export function createGameState() {
   const enterPlanetView = (planetId) => {
     setViewPlanetId(planetId);
     setViewState('planet');
+
+    // Initialize Nexus at (0,0) if not already built
+    setHexBuildings(prev => {
+      if (prev['0,0']) return prev; // Already has a building
+      return { ...prev, '0,0': 'nexus' };
+    });
   };
 
   /**
@@ -476,6 +486,33 @@ export function createGameState() {
   };
 
   /**
+   * Update hex building construction queue
+   */
+  const updateHexConstruction = () => {
+    const queue = hexConstructionQueue();
+    if (queue.length === 0) return;
+
+    const now = Date.now();
+    let modified = false;
+
+    const updatedQueue = queue.filter(item => {
+      const elapsed = now - item.startTime;
+      if (elapsed >= item.duration) {
+        // Construction complete - add building to hex
+        setHexBuildings(prev => ({ ...prev, [item.hexId]: item.buildingKey }));
+        modified = true;
+        console.log(`✅ Hex building complete: ${item.buildingKey} at ${item.hexId}`);
+        return false; // Remove from queue
+      }
+      return true; // Keep in queue
+    });
+
+    if (modified) {
+      setHexConstructionQueue(updatedQueue);
+    }
+  };
+
+  /**
    * Main game tick - runs every 100ms
    */
   const gameTick = () => {
@@ -509,6 +546,9 @@ export function createGameState() {
 
     // Update FTL construction
     updateFTLConstruction();
+
+    // Update hex building construction
+    updateHexConstruction();
 
     // Update tech research
     updateTechResearch();
@@ -791,6 +831,61 @@ export function createGameState() {
   };
 
   /**
+   * Start building construction on a hex (10 second build time)
+   */
+  const startHexBuilding = (hexId, buildingKey) => {
+    // Check if hex already has a building
+    if (hexBuildings()[hexId]) {
+      console.log(`❌ Hex ${hexId} already has a building`);
+      return false;
+    }
+
+    // Check if already constructing on this hex
+    if (hexConstructionQueue().some(item => item.hexId === hexId)) {
+      console.log(`❌ Already constructing on hex ${hexId}`);
+      return false;
+    }
+
+    // Add to construction queue
+    setHexConstructionQueue(prev => [...prev, {
+      hexId,
+      buildingKey,
+      startTime: Date.now(),
+      duration: 10000 // 10 seconds
+    }]);
+
+    console.log(`🔨 Started building ${buildingKey} on hex ${hexId}`);
+    return true;
+  };
+
+  /**
+   * Demolish a building on a hex
+   */
+  const demolishHexBuilding = (hexId) => {
+    const building = hexBuildings()[hexId];
+    if (!building) {
+      console.log(`❌ No building on hex ${hexId}`);
+      return false;
+    }
+
+    // Can't demolish Nexus
+    if (building === 'nexus') {
+      console.log(`❌ Cannot demolish Nexus building`);
+      return false;
+    }
+
+    // Remove building
+    setHexBuildings(prev => {
+      const updated = { ...prev };
+      delete updated[hexId];
+      return updated;
+    });
+
+    console.log(`💥 Demolished ${building} on hex ${hexId}`);
+    return true;
+  };
+
+  /**
    * Start researching a technology
    */
   const startResearch = (techId) => {
@@ -919,6 +1014,8 @@ export function createGameState() {
         setScanningSystem(state.scanningSystem || null);
         setFtlConstruction(state.ftlConstruction || null);
         setZoomLevel(state.zoomLevel || 0.45);
+        setHexBuildings(state.hexBuildings || {});
+        setHexConstructionQueue(state.hexConstructionQueue || []);
 
         // Restore view state - but reset to galaxy if in planet view (transient) or if system view has no valid system
         // Note: viewSystemId can be 0 (Sol has id 0), so we check with !== null && !== undefined
@@ -1017,6 +1114,8 @@ export function createGameState() {
         zoomLevel: zoomLevel(),
         viewState: viewState(),
         viewSystemId: viewSystemId(),
+        hexBuildings: hexBuildings(),
+        hexConstructionQueue: hexConstructionQueue(),
         lastSaved: Date.now()
       };
 
@@ -1072,6 +1171,8 @@ export function createGameState() {
     setZoomLevel(0.45);
     setViewState('galaxy');
     setViewSystemId(null);
+    setHexBuildings({});
+    setHexConstructionQueue([]);
     startGameLoop();
 
     // NOW trigger the fade-in (galaxy data is ready)
@@ -1170,6 +1271,11 @@ export function createGameState() {
     viewSystemId,
     viewPlanetId,
 
+    // Hex grid state
+    hexBuildings,
+    setHexBuildings,
+    hexConstructionQueue,
+
     // Real-time state
     resources,
     setResources,
@@ -1205,6 +1311,8 @@ export function createGameState() {
     exitSystemView,
     enterPlanetView,
     exitPlanetView,
+    startHexBuilding,
+    demolishHexBuilding,
 
     // Game loop control
     startGameLoop,

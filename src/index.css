@@ -582,6 +582,26 @@ svg text {
   z-index: 6;
 }
 
+/* --- Hover Animations --- */
+.construct-grid.building-hover:hover .block {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.construct-grid.building-hover:hover .block.structure {
+  background-color: rgba(255, 255, 255, 0.12);
+  transform: scale(1.02);
+}
+
+.construct-grid.building-hover:hover .block.core {
+  box-shadow: 0 0 50px rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+.construct-grid.building-hover:hover .block.depth {
+  transform: scale(1);
+  background-color: rgba(255, 255, 255, 0.09);
+}
+
 /* =========================================
    HEADQUARTERS DEFINITIONS
    ========================================= */

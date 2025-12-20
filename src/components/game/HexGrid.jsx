@@ -1,6 +1,7 @@
 import { createSignal, For, createMemo, Show } from 'solid-js';
 import { Building } from './Buildings';
 import { useZoomableSvg } from '../../hooks/useZoomableSvg';
+import { SystemProgressRing } from './SystemProgressRing';
 
 // Hexagon constants
 const HEX_SIZE = 40;
@@ -31,15 +32,20 @@ const getHexPoints = (x, y, size) => {
  * @property {Function} onHexSelect - Callback when a hex is selected
  * @property {Array<string|number>} selectedHexIds - Array of IDs of the currently selected hexes
  * @property {Object} hexBuildings - Map of hex id to building key
+ * @property {Array} hexConstructionQueue - Array of construction items { hexId, buildingKey, startTime, duration }
  */
 
 export const HexGrid = (props) => {
   // Manual zoom limits similar to GalaxyMap
   const MIN_SCALE = 0.1;
   const MAX_SCALE = 3.0;
-  
+
   // Transform signal to sync with D3
   const [transform, setTransform] = createSignal({ k: 1, x: 0, y: 0 });
+
+  // Current time for progress calculation (updates every 100ms)
+  const [currentTime, setCurrentTime] = createSignal(Date.now());
+
   const { setSvgRef, setGroupRef } = useZoomableSvg({
     minScale: MIN_SCALE,
     maxScale: MAX_SCALE,
@@ -56,6 +62,13 @@ export const HexGrid = (props) => {
         d3.zoomIdentity.translate(initialX, initialY).scale(initialScale)
       );
     },
+    onMount: () => {
+      // Start progress update interval for construction progress
+      const progressInterval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 100);
+      return () => clearInterval(progressInterval);
+    }
   });
 
   const handleHexClick = (e, hex) => {
@@ -77,6 +90,27 @@ export const HexGrid = (props) => {
   // Memoized Set of selected IDs for O(1) lookup
   const selectedSet = createMemo(() => new Set(props.selectedHexIds || []));
 
+  // Memoized map of hex ID to construction progress
+  const constructionProgressMap = createMemo(() => {
+    const queue = props.hexConstructionQueue || [];
+    const now = currentTime();
+    const map = new Map();
+
+    queue.forEach(construction => {
+      const elapsed = now - construction.startTime;
+      const progress = Math.min(100, (elapsed / construction.duration) * 100);
+
+      map.set(construction.hexId, {
+        progress,
+        buildingKey: construction.buildingKey,
+        elapsed,
+        duration: construction.duration
+      });
+    });
+
+    return map;
+  });
+
   // Memoized Map of coordinate to ID to facilitate neighbor lookup
   const hexIdMap = createMemo(() => {
     const map = new Map();
@@ -92,31 +126,31 @@ export const HexGrid = (props) => {
     const selected = selectedSet();
     const idMap = hexIdMap();
     if (!props.hexes) return segments;
-    
+
     // Only process selected hexes
     const selectedHexes = props.hexes.filter(h => selected.has(h.id));
-    
+
     selectedHexes.forEach(hex => {
       const { x, y } = hexToPixel(hex.q, hex.r);
-      
+
       // Check all 6 directions
       for (let i = 0; i < 6; i++) {
         const dir = [
-            { q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 1 }, 
+            { q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 1 },
             { q: -1, r: 0 }, { q: 0, r: -1 }, { q: 1, r: -1 }
         ][i];
-        
+
         const nq = hex.q + dir.q;
         const nr = hex.r + dir.r;
         const nId = idMap.get(`${nq},${nr}`);
-        
+
         // If neighbor is NOT selected, this edge is a boundary
         if (nId === undefined || !selected.has(nId)) {
            // Calculate corners for side i
            // Angles for Pointy Topped: 60*i - 30
            const angle1 = Math.PI / 180 * (60 * i - 30);
            const angle2 = Math.PI / 180 * (60 * ((i + 1) % 6) - 30);
-           
+
            segments.push({
              x1: x + HEX_SIZE * Math.cos(angle1),
              y1: y + HEX_SIZE * Math.sin(angle1),
@@ -143,6 +177,7 @@ export const HexGrid = (props) => {
             // We use the reactive memo here to avoid prop drilling issues if any
             const isSelected = selectedSet().has(hex.id);
             const buildingKey = () => props.hexBuildings?.[hex.id];
+            const constructionInfo = () => constructionProgressMap().get(hex.id);
 
             return (
               <g
@@ -161,8 +196,8 @@ export const HexGrid = (props) => {
                   class={`transition-all duration-200 hover:fill-white/10 ${isSelected ? '' : 'hover:stroke-white/40'}`}
                 />
 
-                {/* Building on hex */}
-                <Show when={buildingKey()}>
+                {/* Building on hex (completed) */}
+                <Show when={buildingKey() && !constructionInfo()}>
                   <foreignObject
                     x={-HEX_SIZE * 0.6}
                     y={-HEX_SIZE * 0.6}
@@ -185,8 +220,42 @@ export const HexGrid = (props) => {
                   </foreignObject>
                 </Show>
 
-                {/* Debug Coord Label - only show when no building */}
-                <Show when={!buildingKey()}>
+                {/* Building under construction (30% opacity outline) */}
+                <Show when={constructionInfo()}>
+                  <foreignObject
+                    x={-HEX_SIZE * 0.6}
+                    y={-HEX_SIZE * 0.6}
+                    width={HEX_SIZE * 1.2}
+                    height={HEX_SIZE * 1.2}
+                    class="pointer-events-none"
+                    opacity={0.3}
+                  >
+                    <div
+                      xmlns="http://www.w3.org/1999/xhtml"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        'align-items': 'center',
+                        'justify-content': 'center',
+                      }}
+                    >
+                      <Building buildingKey={constructionInfo().buildingKey} size={HEX_SIZE * 1.1} />
+                    </div>
+                  </foreignObject>
+
+                  {/* Progress ring */}
+                  <SystemProgressRing
+                    radius={HEX_SIZE * 0.75}
+                    progress={constructionInfo().progress}
+                    stroke="rgba(255, 255, 255, 0.9)"
+                    strokeWidth={2}
+                    opacity={0.95}
+                  />
+                </Show>
+
+                {/* Debug Coord Label - only show when no building and no construction */}
+                <Show when={!buildingKey() && !constructionInfo()}>
                   <text
                     x="0"
                     y="0"
@@ -207,13 +276,13 @@ export const HexGrid = (props) => {
         <g class="selected-glow pointer-events-none">
           <For each={boundarySegments()}>
             {(seg) => (
-              <line 
-                x1={seg.x1} 
-                y1={seg.y1} 
-                x2={seg.x2} 
-                y2={seg.y2} 
-                stroke="white" 
-                stroke-width="2" 
+              <line
+                x1={seg.x1}
+                y1={seg.y1}
+                x2={seg.x2}
+                y2={seg.y2}
+                stroke="white"
+                stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />

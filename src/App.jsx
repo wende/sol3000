@@ -3,7 +3,7 @@ import { createGameState } from './utils/gameState';
 import { GalaxyMap } from './components/game/GalaxyMap';
 import { SystemView } from './components/game/SystemView';
 import { HexGrid } from './components/game/HexGrid';
-import { BUILDING_DEFINITIONS } from './components/game/Buildings';
+import { HexBuildingMenu } from './components/game/HexBuildingMenu';
 import { Sidebar } from './components/game/Sidebar';
 import { CommandBar } from './components/game/CommandBar';
 import { BackgroundGrid } from './components/common/BackgroundGrid';
@@ -11,38 +11,54 @@ import { StartGameButton } from './components/common/StartGameButton';
 import { VignetteOverlay } from './components/common/VignetteOverlay';
 import './styles/global.css';
 
-// Available building keys for random placement
-const BUILDING_KEYS = Object.keys(BUILDING_DEFINITIONS);
-
 export default function App() {
   // Initialize game state with real-time tick system
   const gameState = createGameState();
 
-  // Hex grid state (temporary, will be moved to gameState later)
-  const [selectedHexIds, setSelectedHexIds] = createSignal([]);
-  const [hexBuildings, setHexBuildings] = createSignal({});
+  // Hex selection and menu state
+  const [selectedHexId, setSelectedHexId] = createSignal(null);
+  const [showBuildingMenu, setShowBuildingMenu] = createSignal(false);
 
-  // Handle hex click - toggle selection and add building
+  // Handle hex click - show building menu
   const handleHexSelect = (hexId) => {
     if (hexId === null) {
-      setSelectedHexIds([]);
+      setSelectedHexId(null);
+      setShowBuildingMenu(false);
       return;
     }
 
-    // Toggle selection
-    setSelectedHexIds(prev => {
-      if (prev.includes(hexId)) {
-        return prev.filter(id => id !== hexId);
-      }
-      return [...prev, hexId];
-    });
+    setSelectedHexId(hexId);
+    setShowBuildingMenu(true);
+  };
 
-    // Add a random building to the hex if it doesn't have one
-    setHexBuildings(prev => {
-      if (prev[hexId]) return prev; // Already has a building
-      const randomKey = BUILDING_KEYS[Math.floor(Math.random() * BUILDING_KEYS.length)];
-      return { ...prev, [hexId]: randomKey };
-    });
+  // Handle building selection from menu
+  const handleBuildBuilding = (buildingKey) => {
+    const hexId = selectedHexId();
+    if (!hexId) return;
+
+    const success = gameState.startHexBuilding(hexId, buildingKey);
+    if (success) {
+      setShowBuildingMenu(false);
+      setSelectedHexId(null);
+    }
+  };
+
+  // Handle building demolition
+  const handleDemolishBuilding = () => {
+    const hexId = selectedHexId();
+    if (!hexId) return;
+
+    const success = gameState.demolishHexBuilding(hexId);
+    if (success) {
+      setShowBuildingMenu(false);
+      setSelectedHexId(null);
+    }
+  };
+
+  // Handle menu close
+  const handleCloseMenu = () => {
+    setShowBuildingMenu(false);
+    setSelectedHexId(null);
   };
 
   // Load saved game or start new game
@@ -217,10 +233,36 @@ export default function App() {
                   }
                   return hexes;
                 })()}
-                selectedHexIds={selectedHexIds()}
-                hexBuildings={hexBuildings()}
+                selectedHexIds={selectedHexId() ? [selectedHexId()] : []}
+                hexBuildings={gameState.hexBuildings()}
+                hexConstructionQueue={gameState.hexConstructionQueue()}
                 onHexSelect={handleHexSelect}
               />
+
+              {/* Building Menu Overlay */}
+              <Show when={showBuildingMenu()}>
+                <HexBuildingMenu
+                  hexId={selectedHexId()}
+                  existingBuilding={gameState.hexBuildings()[selectedHexId()]}
+                  constructionInfo={(() => {
+                    const hexId = selectedHexId();
+                    if (!hexId) return null;
+                    const queue = gameState.hexConstructionQueue();
+                    const construction = queue.find(item => item.hexId === hexId);
+                    if (!construction) return null;
+                    const now = Date.now();
+                    const elapsed = now - construction.startTime;
+                    const progress = Math.min(100, (elapsed / construction.duration) * 100);
+                    return {
+                      progress,
+                      buildingKey: construction.buildingKey
+                    };
+                  })()}
+                  onBuild={handleBuildBuilding}
+                  onDemolish={handleDemolishBuilding}
+                  onClose={handleCloseMenu}
+                />
+              </Show>
             </div>
           </Show>
         </div>
