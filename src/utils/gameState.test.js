@@ -140,6 +140,37 @@ describe('gameState', () => {
       expect(result).toBe(true);
       expect(localStorageMock.removeItem).not.toHaveBeenCalled();
     });
+
+    it('should correctly handle homeSystemId of 0 (Sol has id 0)', () => {
+      // This tests the fix for the bug where homeSystemId === 0 was treated as falsy
+      const validState = {
+        galaxyData: {
+          systems: [
+            { id: 0, name: 'Sol', owner: 'Player', x: 500, y: 500, isHomeSystem: true },
+            { id: 1, name: 'System B', owner: 'Unclaimed', x: 600, y: 600 }
+          ],
+          routes: []
+        },
+        homeSystemId: 0, // Sol has id 0 - must be treated as valid, not falsy!
+        resources: { ore: 150, credits: 300 }
+      };
+
+      localStorageMock.getItem.mockReturnValue(JSON.stringify(validState));
+
+      let result;
+      let homeId;
+      createRoot(dispose => {
+        const gameState = createGameState();
+        result = gameState.loadState();
+        homeId = gameState.homeSystemId();
+        gameState.stopGameLoop();
+        dispose();
+      });
+
+      expect(result).toBe(true);
+      expect(homeId).toBe(0); // Must be exactly 0, not null or undefined
+      expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+    });
   });
 
   describe('Bug #2: Immediate save after home system assignment', () => {
@@ -191,6 +222,29 @@ describe('gameState', () => {
 
         expect(playerSystems).toHaveLength(1);
         expect(playerSystems[0].id).toBe(gameState.homeSystemId());
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should prioritize the designated home system (Sol) if present', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState();
+        gameState.newGame();
+
+        vi.advanceTimersByTime(1100);
+
+        const galaxy = gameState.galaxyData();
+        const homeId = gameState.homeSystemId();
+        const homeSystem = galaxy.systems.find(s => s.id === homeId);
+
+        expect(homeSystem).toBeDefined();
+        // The generator ensures the designated home system is 'Sol' and has isHomeSystem: true
+        // If our newGame logic works, it should have picked this specific system.
+        expect(homeSystem.name).toBe('Sol');
+        expect(homeSystem.isHomeSystem).toBe(true);
 
         gameState.stopGameLoop();
         dispose();

@@ -271,7 +271,11 @@ function generateHomePlanets(count, eccentricity) {
 
   for (let i = 0; i < count; i++) {
     const forcedType = i === terrestrialIndex ? 'Terrestrial' : null;
-    planets.push(generatePlanet(i, eccentricity, forcedType));
+    const planet = generatePlanet(i, eccentricity, forcedType);
+    if (forcedType === 'Terrestrial') {
+      planet.isHomePlanet = true;
+    }
+    planets.push(planet);
   }
   return planets;
 }

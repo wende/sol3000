@@ -1,16 +1,48 @@
-import { onMount, onCleanup, createEffect, createMemo, Show } from 'solid-js';
+import { onMount, onCleanup, createEffect, createMemo, createSignal, Show } from 'solid-js';
 import { createGameState } from './utils/gameState';
 import { GalaxyMap } from './components/game/GalaxyMap';
 import { SystemView } from './components/game/SystemView';
+import { HexGrid } from './components/game/HexGrid';
+import { BUILDING_DEFINITIONS } from './components/game/Buildings';
 import { Sidebar } from './components/game/Sidebar';
 import { CommandBar } from './components/game/CommandBar';
 import { BackgroundGrid } from './components/common/BackgroundGrid';
 import { StartGameButton } from './components/common/StartGameButton';
 import { VignetteOverlay } from './components/common/VignetteOverlay';
 
+// Available building keys for random placement
+const BUILDING_KEYS = Object.keys(BUILDING_DEFINITIONS);
+
 export default function App() {
   // Initialize game state with real-time tick system
   const gameState = createGameState();
+
+  // Hex grid state (temporary, will be moved to gameState later)
+  const [selectedHexIds, setSelectedHexIds] = createSignal([]);
+  const [hexBuildings, setHexBuildings] = createSignal({});
+
+  // Handle hex click - toggle selection and add building
+  const handleHexSelect = (hexId) => {
+    if (hexId === null) {
+      setSelectedHexIds([]);
+      return;
+    }
+
+    // Toggle selection
+    setSelectedHexIds(prev => {
+      if (prev.includes(hexId)) {
+        return prev.filter(id => id !== hexId);
+      }
+      return [...prev, hexId];
+    });
+
+    // Add a random building to the hex if it doesn't have one
+    setHexBuildings(prev => {
+      if (prev[hexId]) return prev; // Already has a building
+      const randomKey = BUILDING_KEYS[Math.floor(Math.random() * BUILDING_KEYS.length)];
+      return { ...prev, [hexId]: randomKey };
+    });
+  };
 
   // Load saved game or start new game
   onMount(() => {
@@ -53,7 +85,9 @@ export default function App() {
   createEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Escape') {
-        if (gameState.viewState() === 'system') {
+        if (gameState.viewState() === 'planet') {
+          gameState.exitPlanetView();
+        } else if (gameState.viewState() === 'system') {
           gameState.exitSystemView();
         } else {
           gameState.setSelectedSystemId(null);
@@ -329,12 +363,54 @@ export default function App() {
         </div>
 
         {/* System View - Overlay with fade in */}
-        <div class={`absolute inset-0 z-20 transition-opacity duration-1000 ${gameState.viewState() === 'system' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <Show when={gameState.viewState() === 'system'}>
+        {/* Keep visible during planet view to prevent galaxy flash-through */}
+        <div class={`absolute inset-0 z-20 transition-opacity duration-1000 ${
+          gameState.viewState() === 'system' ? 'opacity-100 pointer-events-auto' :
+          gameState.viewState() === 'planet' ? 'opacity-100 pointer-events-none' :
+          'opacity-0 pointer-events-none'
+        }`}>
+          <Show when={gameState.viewState() === 'system' || gameState.viewState() === 'planet'}>
             <SystemView
               system={viewedSystem()}
               onBack={() => gameState.exitSystemView()}
+              onPlanetSelect={(planetId) => gameState.enterPlanetView(planetId)}
             />
+          </Show>
+        </div>
+
+        {/* Planet View (Hex Grid) - Overlay */}
+        <div class={`absolute inset-0 z-30 transition-opacity duration-1000 ${gameState.viewState() === 'planet' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          <Show when={gameState.viewState() === 'planet'}>
+            <div class="w-full h-full relative bg-black">
+              {/* Back Button */}
+              <div class="absolute top-4 left-4 z-50">
+                <button 
+                  onClick={() => gameState.exitPlanetView()}
+                  class="px-6 py-2 bg-black/50 border border-white/20 text-white hover:bg-white/10 transition-colors backdrop-blur-md"
+                >
+                  &larr; BACK TO SYSTEM
+                </button>
+              </div>
+              
+              <HexGrid
+                hexes={(() => {
+                  // Mock hex generation for now
+                  const radius = 5;
+                  const hexes = [];
+                  for (let q = -radius; q <= radius; q++) {
+                    const r1 = Math.max(-radius, -q - radius);
+                    const r2 = Math.min(radius, -q + radius);
+                    for (let r = r1; r <= r2; r++) {
+                      hexes.push({ q, r, id: `${q},${r}` });
+                    }
+                  }
+                  return hexes;
+                })()}
+                selectedHexIds={selectedHexIds()}
+                hexBuildings={hexBuildings()}
+                onHexSelect={handleHexSelect}
+              />
+            </div>
           </Show>
         </div>
       </div>

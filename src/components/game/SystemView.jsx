@@ -1,3 +1,4 @@
+import { createSignal, createEffect, onCleanup, createMemo } from 'solid-js';
 import { Button } from '../common/Button';
 import { GlassPanel } from '../common/GlassPanel';
 import { getStarColor } from './Star';
@@ -10,6 +11,33 @@ import { SPECTRAL_CLASSES } from '../../utils/galaxy';
 export const SystemView = (props) => {
   // Get current system data
   const system = () => props.system;
+
+  const [windowWidth, setWindowWidth] = createSignal(window.innerWidth);
+
+  createEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    onCleanup(() => window.removeEventListener('resize', handleResize));
+  });
+
+  const spacing = createMemo(() => {
+    const s = system();
+    if (!s) return 150;
+    
+    const count = s.planets.length;
+    if (count <= 1) return 150;
+
+    // We prioritize legibility over fitting since we have horizontal scrolling.
+    // Ensure enough space so text labels (approx 100-120px) don't overlap.
+    const availableWidth = windowWidth() * 0.8; 
+    const starRadius = s.size * 10;
+    const startOffset = 240 + starRadius + 150; // CenterX + Star + First Gap
+    
+    const availableForSpacing = availableWidth - startOffset;
+    const calculatedSpacing = availableForSpacing / (count - 1);
+    
+    return Math.min(300, Math.max(150, calculatedSpacing));
+  });
   
   if (!system()) return null;
 
@@ -93,7 +121,7 @@ export const SystemView = (props) => {
               'padding-bottom': 'calc(50vh - 300px)'
             }}>
 
-               <svg height="600" width={600 + (system().planets.length * 120)} class="overflow-visible">
+               <svg height="600" width={Math.max(1000, 600 + (system().planets.length * spacing()))} class="overflow-visible">
                  <defs>
                     <filter id="star-glow" x="-50%" y="-50%" width="200%" height="200%">
                       <feGaussianBlur stdDeviation="20" result="blur" />
@@ -126,8 +154,7 @@ export const SystemView = (props) => {
                     const centerX = 240;
                     const centerY = 300;
                     const starRadius = system().size * 10;
-                    const spacing = 120;
-                    const orbitRadius = starRadius + 120 + (i * spacing);
+                    const orbitRadius = starRadius + 120 + (i * spacing());
                     
                     // Angle span: +/- 35 degrees
                     const angle = 35;
@@ -147,7 +174,14 @@ export const SystemView = (props) => {
                     const py = centerY;
 
                     return (
-                       <g class="group cursor-pointer hover:opacity-100 transition-opacity">
+                       <g 
+                          class="group cursor-pointer hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                             if (planet.isHomePlanet) {
+                                props.onPlanetSelect?.(planet.id);
+                             }
+                          }}
+                       >
                           {/* Orbit Slice */}
                           <path 
                              d={pathData} 
@@ -159,6 +193,28 @@ export const SystemView = (props) => {
 
                           {/* Planet Group */}
                           <g transform={`translate(${px}, ${py})`}>
+                             {/* Hit Area - Increased for easier clicking */}
+                             <circle r={30} fill="transparent" />
+
+                             {/* Home Planet Indicator */}
+                             {planet.isHomePlanet && (
+                               <g>
+                                 <circle 
+                                   r={Math.max(4, planet.radius) + 6} 
+                                   fill="none" 
+                                   stroke="rgba(100, 200, 255, 0.4)" 
+                                   stroke-width="1"
+                                 />
+                                 <circle 
+                                   r={Math.max(4, planet.radius) + 9} 
+                                   fill="none" 
+                                   stroke="rgba(100, 200, 255, 0.2)" 
+                                   stroke-width="1"
+                                   stroke-dasharray="2 4"
+                                 />
+                               </g>
+                             )}
+
                              {/* Planet Circle */}
                              <circle 
                                 r={Math.max(4, planet.radius)} 

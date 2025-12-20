@@ -28,9 +28,10 @@ export function createGameState() {
   const [isGameActive, setIsGameActive] = createSignal(false); // True as soon as newGame is called
   const [fogTransitioning, setFogTransitioning] = createSignal(false); // True during fog of war fade animation
   
-  // View state (Galaxy Map vs System View)
-  const [viewState, setViewState] = createSignal('galaxy'); // 'galaxy' | 'system'
+  // View state (Galaxy Map vs System View vs Planet View)
+  const [viewState, setViewState] = createSignal('galaxy'); // 'galaxy' | 'system' | 'planet'
   const [viewSystemId, setViewSystemId] = createSignal(null);
+  const [viewPlanetId, setViewPlanetId] = createSignal(null);
 
   // Real-time resource signals (energy is now capacity-based, not accumulated)
   const [resources, setResources] = createSignal({
@@ -134,6 +135,22 @@ export function createGameState() {
   const exitSystemView = () => {
     setViewState('galaxy');
     setViewSystemId(null);
+  };
+
+  /**
+   * Enter planet view (Hex Grid)
+   */
+  const enterPlanetView = (planetId) => {
+    setViewPlanetId(planetId);
+    setViewState('planet');
+  };
+
+  /**
+   * Exit planet view (return to system view)
+   */
+  const exitPlanetView = () => {
+    setViewState('system');
+    setViewPlanetId(null);
   };
 
   /**
@@ -801,6 +818,9 @@ export function createGameState() {
           alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThe save file could not be read. Starting a new game.\n\nTechnical details: ${parseError.message}`);
           localStorage.removeItem(STORAGE_KEY);
           const newGalaxy = generateGalaxy();
+          // Fix: Set home system ID immediately to prevent corruption check failure
+          const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
+          if (homeSystem) setHomeSystemId(homeSystem.id);
           setGalaxyData(newGalaxy);
           startGameLoop();
           return false;
@@ -809,11 +829,12 @@ export function createGameState() {
         // Validate saved data - detect corruption
         console.log('🔍 Validating save data integrity...');
         const playerSystems = state.galaxyData?.systems?.filter(s => s.owner === 'Player') || [];
-        const hasHome = !!state.homeSystemId;
+        // Note: homeSystemId can be 0 (Sol has id 0), so we must check for null/undefined explicitly
+        const hasHome = state.homeSystemId !== null && state.homeSystemId !== undefined;
         const homeExists = state.galaxyData?.systems?.some(s => s.id === state.homeSystemId);
 
         console.log(`   Player systems: ${playerSystems.length}`);
-        console.log(`   Home system ID: ${state.homeSystemId || 'none'}`);
+        console.log(`   Home system ID: ${hasHome ? state.homeSystemId : 'none'}`);
         console.log(`   Home exists in galaxy: ${homeExists}`);
 
         // Corruption: Player owns systems but no valid home, or too many systems owned at start
@@ -833,6 +854,9 @@ export function createGameState() {
 
           localStorage.removeItem(STORAGE_KEY);
           const newGalaxy = generateGalaxy();
+          // Fix: Set home system ID immediately to prevent corruption check failure
+          const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
+          if (homeSystem) setHomeSystemId(homeSystem.id);
           setGalaxyData(newGalaxy);
           startGameLoop();
           return false;
@@ -853,7 +877,8 @@ export function createGameState() {
         console.log('📥 Restoring game state...');
 
         setGalaxyData(migratedGalaxyData);
-        setHomeSystemId(state.homeSystemId || null);
+        // Note: homeSystemId can be 0 (Sol has id 0), so we must handle null/undefined explicitly
+        setHomeSystemId(state.homeSystemId ?? null);
         // Handle both old and new resource format
         const savedResources = state.resources || { ore: 100, credits: 200 };
         setResources({ ore: savedResources.ore || 100, credits: savedResources.credits || 200 });
@@ -864,12 +889,21 @@ export function createGameState() {
         setFtlConstruction(state.ftlConstruction || null);
         setZoomLevel(state.zoomLevel || 0.45);
 
-        // Restore view state
-        setViewState(state.viewState || 'galaxy');
-        setViewSystemId(state.viewSystemId || null);
+        // Restore view state - but reset to galaxy if in planet view (transient) or if system view has no valid system
+        // Note: viewSystemId can be 0 (Sol has id 0), so we check with !== null && !== undefined
+        const savedViewSystemId = state.viewSystemId;
+        const hasValidViewSystem = savedViewSystemId !== null && savedViewSystemId !== undefined &&
+          migratedGalaxyData.systems.some(s => s.id === savedViewSystemId);
+
+        const shouldRestoreSystemView = state.viewState === 'system' && hasValidViewSystem;
+        const restoredViewState = shouldRestoreSystemView ? 'system' : 'galaxy';
+
+        setViewState(restoredViewState);
+        setViewSystemId(shouldRestoreSystemView ? savedViewSystemId : null);
 
         // Mark game as active if we have a home system
-        if (state.homeSystemId) {
+        // Note: homeSystemId can be 0 (Sol has id 0), so use hasHome which already checks explicitly
+        if (hasHome) {
           setIsGameActive(true);
         }
 
@@ -899,6 +933,9 @@ export function createGameState() {
     // If no saved state, generate new galaxy
     console.log('📂 No saved game found, generating new galaxy');
     const newGalaxy = generateGalaxy();
+    // Fix: Set home system ID immediately to prevent corruption check failure
+    const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
+    if (homeSystem) setHomeSystemId(homeSystem.id);
     setGalaxyData(newGalaxy);
     startGameLoop();
     return false;
@@ -933,8 +970,9 @@ export function createGameState() {
 
       // Guard: Don't save if we have Player systems but no homeSystemId
       // This would create a corrupted save
+      // Note: home === 0 is valid (Sol has id 0), so we must check for null explicitly
       const playerSystems = galaxy.systems.filter(s => s.owner === 'Player');
-      if (playerSystems.length > 0 && !home) {
+      if (playerSystems.length > 0 && home === null) {
         console.error('💾 Save skipped: CORRUPTION PREVENTION');
         console.error(`   Player owns ${playerSystems.length} systems but homeSystemId is null`);
         console.error(`   Player systems:`, playerSystems.map(s => `${s.name} (${s.id})`));
@@ -1017,9 +1055,13 @@ export function createGameState() {
     // Pick a random home system after 1 second
     setTimeout(() => {
       if (resetSystems.length > 0) {
-        // Find an unclaimed system with good resources
+        // Find the designated home system (Sol) or fall back to a random one
+        const designatedHome = resetSystems.find(s => s.isHomeSystem);
+        
+        // Find an unclaimed system with good resources (for fallback)
         const candidates = resetSystems.filter(s => s.resources !== 'Poor' && s.owner === 'Unclaimed');
-        const homeSystem = candidates[Math.floor(Math.random() * candidates.length)] || resetSystems.find(s => s.owner === 'Unclaimed');
+        
+        const homeSystem = designatedHome || candidates[Math.floor(Math.random() * candidates.length)] || resetSystems.find(s => s.owner === 'Unclaimed');
 
         if (homeSystem) {
           // Start fog transition BEFORE setting home (keeps all systems visible during fade)
@@ -1101,6 +1143,7 @@ export function createGameState() {
     
     viewState,
     viewSystemId,
+    viewPlanetId,
 
     // Real-time state
     resources,
@@ -1132,6 +1175,8 @@ export function createGameState() {
     findPath,
     enterSystemView,
     exitSystemView,
+    enterPlanetView,
+    exitPlanetView,
 
     // Game loop control
     startGameLoop,

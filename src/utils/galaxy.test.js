@@ -58,6 +58,21 @@ describe('generateGalaxy', () => {
         expect(['Enemy', 'Unclaimed']).toContain(system.owner);
       });
     });
+
+    it('should mark the terrestrial planet in home system as isHomePlanet', () => {
+      for (let i = 0; i < 20; i++) {
+        const { systems } = generateGalaxy();
+        const homeSystem = systems.find(s => s.isHomeSystem);
+        const homePlanet = homeSystem.planets.find(p => p.isHomePlanet);
+
+        expect(homePlanet).toBeDefined();
+        expect(homePlanet.type).toBe('Terrestrial');
+
+        // Ensure only one planet is marked
+        const markedPlanets = homeSystem.planets.filter(p => p.isHomePlanet);
+        expect(markedPlanets).toHaveLength(1);
+      }
+    });
   });
 
   describe('Galaxy structure', () => {

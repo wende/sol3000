@@ -176,9 +176,11 @@ export const GalaxyMap = (props) => {
   // Auto-zoom to home system when it's first selected
   createEffect(() => {
     const homeId = props.homeSystemId;
+    // Note: homeSystemId can be 0 (Sol has id 0), so we check for null/undefined explicitly
+    const hasHome = homeId !== null && homeId !== undefined;
 
     // Reset view when home is cleared (new game started)
-    if (!homeId) {
+    if (!hasHome) {
       hasZoomedToHome = false;
       if (homeZoomTimeoutId) {
         clearTimeout(homeZoomTimeoutId);
@@ -189,7 +191,7 @@ export const GalaxyMap = (props) => {
     }
 
     // Zoom to home system once it's set
-    if (homeId && !hasZoomedToHome && props.data.systems.length > 0) {
+    if (hasHome && !hasZoomedToHome && props.data.systems.length > 0) {
       const homeSystem = props.data.systems.find(s => s.id === homeId);
       if (homeSystem && svgRef && zoomBehavior) {
         // Small delay to ensure DOM is ready
@@ -301,8 +303,10 @@ export const GalaxyMap = (props) => {
   // Show ALL systems when no home is set (cinematic intro) or during fog transition
   const visibleSystemsFiltered = createMemo(() => {
     const visibility = props.visibleSystems;
+    // Note: homeSystemId can be 0 (Sol has id 0), so we check for null/undefined explicitly
+    const hasHome = props.homeSystemId !== null && props.homeSystemId !== undefined;
     // Show all systems if no fog of war data OR no home system yet (intro) OR transitioning
-    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !props.homeSystemId || props.fogTransitioning) {
+    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !hasHome || props.fogTransitioning) {
       return props.data.systems;
     }
     return props.data.systems.filter(s => visibility.visibleIds.has(s.id));
@@ -319,8 +323,10 @@ export const GalaxyMap = (props) => {
   // Show ALL routes when no home is set (cinematic intro) or during fog transition
   const visibleRoutesFiltered = createMemo(() => {
     const visibility = props.visibleSystems;
+    // Note: homeSystemId can be 0 (Sol has id 0), so we check for null/undefined explicitly
+    const hasHome = props.homeSystemId !== null && props.homeSystemId !== undefined;
     // Show all routes if no fog of war data OR no home system yet (intro) OR transitioning
-    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !props.homeSystemId || props.fogTransitioning) {
+    if (!visibility?.visibleIds || visibility.visibleIds.size === 0 || !hasHome || props.fogTransitioning) {
       return props.data.routes;
     }
     return props.data.routes.filter(r =>

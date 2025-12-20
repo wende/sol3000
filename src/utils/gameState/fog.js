@@ -3,7 +3,8 @@
  * Also returns tether routes (connections from 2-hop systems to unseen 3-hop systems)
  */
 export function calculateVisibleSystems(galaxy, homeSystemId) {
-  if (!homeSystemId || !galaxy.systems.length) {
+  // Note: homeSystemId can be 0 (Sol has id 0), so we must check for null/undefined explicitly
+  if (homeSystemId === null || homeSystemId === undefined || !galaxy.systems.length) {
     return { visibleIds: new Set(), tetherRoutes: [] };
   }
 
