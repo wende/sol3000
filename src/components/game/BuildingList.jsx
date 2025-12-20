@@ -51,30 +51,35 @@ export function BuildingList(props) {
     return res.ore >= cost.ore && res.credits >= cost.credits;
   };
 
-  // Check if building is actively being built (first in queue)
-  const isActivelyBuilding = (buildingId) => {
+  // Generic helper for queue state across buildings and ships
+  const getQueueStatus = (queueType, target) => {
     const queue = constructionQueue();
-    return queue.length > 0 && queue[0].type === 'building' && queue[0].target === buildingId;
-  };
+    let isActive = false;
+    let isQueued = false;
+    let activeItem = null;
 
-  // Check if building is queued (in queue but not first)
-  const isQueued = (buildingId) => {
-    const queue = constructionQueue();
-    return queue.slice(1).some(item => item.type === 'building' && item.target === buildingId);
-  };
+    for (let i = 0; i < queue.length; i += 1) {
+      const item = queue[i];
+      if (item.type === queueType && item.target === target) {
+        if (i === 0) {
+          isActive = true;
+          activeItem = item;
+        } else {
+          isQueued = true;
+        }
+      }
 
-  // Check if building is in queue at all (for disabling build button)
-  const isInQueue = (buildingId) => {
-    return constructionQueue().some(item => item.type === 'building' && item.target === buildingId);
-  };
-
-  // Get construction queue item for a building (only if it's the active one)
-  const getActiveBuildingQueueItem = (buildingId) => {
-    const queue = constructionQueue();
-    if (queue.length > 0 && queue[0].type === 'building' && queue[0].target === buildingId) {
-      return queue[0];
+      if (isActive && isQueued) {
+        break;
+      }
     }
-    return null;
+
+    return {
+      isActive,
+      isQueued,
+      isInQueue: isActive || isQueued,
+      activeItem,
+    };
   };
 
   // Get building level
@@ -90,32 +95,6 @@ export function BuildingList(props) {
     props.gameState.startConstruction(props.system.id, 'ship', 'colonyShip');
   };
 
-  // Check if ship is actively being built (first in queue)
-  const isActivelyBuildingShip = () => {
-    const queue = constructionQueue();
-    return queue.length > 0 && queue[0].type === 'ship' && queue[0].target === 'colonyShip';
-  };
-
-  // Check if ship is queued (in queue but not first)
-  const isShipQueued = () => {
-    const queue = constructionQueue();
-    return queue.slice(1).some(item => item.type === 'ship' && item.target === 'colonyShip');
-  };
-
-  // Check if ship is in queue at all
-  const isShipInQueue = () => {
-    return constructionQueue().some(item => item.type === 'ship' && item.target === 'colonyShip');
-  };
-
-  // Get ship construction queue item (only if active)
-  const getActiveShipQueueItem = () => {
-    const queue = constructionQueue();
-    if (queue.length > 0 && queue[0].type === 'ship' && queue[0].target === 'colonyShip') {
-      return queue[0];
-    }
-    return null;
-  };
-
   // Can build ships (requires shipyard)
   const canBuildShips = () => getLevel('shipyard') > 0;
 
@@ -124,6 +103,8 @@ export function BuildingList(props) {
     const shipyardLevel = getLevel('shipyard');
     return COLONY_SHIP.buildTime * Math.pow(0.9, shipyardLevel);
   };
+
+  const colonyShipQueueStatus = () => getQueueStatus('ship', 'colonyShip');
 
   const buildingList = Object.values(BUILDINGS);
 
@@ -157,9 +138,11 @@ export function BuildingList(props) {
             const level = () => getLevel(building.id);
             const cost = () => getBuildingCost(building.id, level());
             const affordable = () => canAfford(cost());
-            const activelyBuilding = () => isActivelyBuilding(building.id);
-            const queued = () => isQueued(building.id);
-            const inQueue = () => isInQueue(building.id);
+            const queueStatus = () => getQueueStatus('building', building.id);
+            const activelyBuilding = () => queueStatus().isActive;
+            const queued = () => queueStatus().isQueued;
+            const inQueue = () => queueStatus().isInQueue;
+            const activeQueueItem = () => queueStatus().activeItem;
 
             // Calculate production/effect for this building (per level)
             const production = () => {
@@ -216,7 +199,7 @@ export function BuildingList(props) {
                 <div class="building-action">
                   <Show when={activelyBuilding()}>
                     {(() => {
-                      const queueItem = () => getActiveBuildingQueueItem(building.id);
+                      const queueItem = activeQueueItem;
                       const elapsed = () => queueItem() ? now() - queueItem().startTime : 0;
                       const progress = () => queueItem() ? Math.min(100, (elapsed() / queueItem().duration) * 100) : 0;
                       const remaining = () => queueItem() ? Math.max(0, queueItem().duration - elapsed()) / 1000 : 0;
@@ -255,7 +238,7 @@ export function BuildingList(props) {
         <div class="mt-6 pt-6">
           <h3 class="text-xs text-gray-500 tracking-widest mb-4">SHIP CONSTRUCTION</h3>
 
-          <div class={`building-row glass-panel-row ${isActivelyBuildingShip() ? 'building-in-progress' : ''} ${isShipQueued() ? 'building-queued' : ''}`}>
+          <div class={`building-row glass-panel-row ${colonyShipQueueStatus().isActive ? 'building-in-progress' : ''} ${colonyShipQueueStatus().isQueued ? 'building-queued' : ''}`}>
             <div class="building-icon">
               <div class="icon-placeholder">
                 <Rocket size={24} class="text-white" />
@@ -277,9 +260,9 @@ export function BuildingList(props) {
               <div class="building-production text-gray-300">Uses {COLONY_SHIP.energyUsage} ENERGY when docked</div>
             </div>
             <div class="building-action">
-              <Show when={isActivelyBuildingShip()}>
+              <Show when={colonyShipQueueStatus().isActive}>
                 {(() => {
-                  const queueItem = () => getActiveShipQueueItem();
+                  const queueItem = () => colonyShipQueueStatus().activeItem;
                   const elapsed = () => queueItem() ? now() - queueItem().startTime : 0;
                   const progress = () => queueItem() ? Math.min(100, (elapsed() / queueItem().duration) * 100) : 0;
                   const remaining = () => queueItem() ? Math.max(0, queueItem().duration - elapsed()) / 1000 : 0;
@@ -293,10 +276,10 @@ export function BuildingList(props) {
                   );
                 })()}
               </Show>
-              <Show when={isShipQueued()}>
+              <Show when={colonyShipQueueStatus().isQueued}>
                 <span class="queued-label">Queued</span>
               </Show>
-              <Show when={!isShipInQueue()}>
+              <Show when={!colonyShipQueueStatus().isInQueue}>
                 <button
                   class="build-btn glass-button"
                   onClick={handleBuildShip}
