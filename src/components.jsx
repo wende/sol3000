@@ -28,6 +28,7 @@ import { VignetteOverlay } from './components/common/VignetteOverlay';
 import { BackgroundGrid } from './components/common/BackgroundGrid';
 import { Button } from './components/common/Button';
 import { DemoContainer } from './components/common/DemoContainer';
+import { BuildingConstruct, BUILDING_CONSTRUCT_CATEGORIES } from './components/common/BuildingConstruct';
 
 // Import real data
 import { SPECTRAL_CLASSES } from './utils/galaxy';
@@ -772,6 +773,87 @@ function ComponentsApp() {
           </h2>
           <Show when={!isCollapsed('building-icons')}>
           <BuildingIconShowcase id="building-icons-showcase" />
+          </Show>
+        </section>
+
+        {/* Building Constructs Section */}
+        <section id="section-building-constructs">
+          <h2
+            class="text-xl font-light tracking-widest text-white mb-6 border-b border-white/10 pb-4 cursor-pointer hover:text-blue-300 transition-colors flex items-center justify-between"
+            onClick={() => toggleSection('building-constructs')}
+          >
+            <span>BUILDING CONSTRUCTS (BuildingConstruct Component)</span>
+            <ChevronDown
+              size={20}
+              class={`transition-transform ${isCollapsed('building-constructs') ? '' : 'rotate-180'}`}
+            />
+          </h2>
+          <Show when={!isCollapsed('building-constructs')}>
+          <GlassPanel class="p-8 my-10">
+            <p class="text-xs text-gray-500 mb-8">
+              Large-scale building visualizations using 5x5 CSS grid with layered blocks.
+              Each building has unique architecture representing its category and function.
+              Hover over buildings to see interactive effects.
+            </p>
+
+            <For each={Object.entries(BUILDING_CONSTRUCT_CATEGORIES)}>
+              {([category, buildingTypes]) => (
+                <div class="mb-12">
+                  <h3 class="text-sm font-bold tracking-widest text-white mb-6 uppercase border-b border-white/10 pb-2">
+                    {category}
+                  </h3>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <For each={buildingTypes}>
+                      {(buildingType) => (
+                        <div class="flex flex-col items-center">
+                          <BuildingConstruct
+                            type={buildingType}
+                            size={140}
+                            showLabel={true}
+                            interactive={true}
+                          />
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              )}
+            </For>
+
+            <div class="mt-12 p-6 bg-white/5 rounded border border-white/10">
+              <h3 class="text-xs text-gray-500 tracking-widest mb-4">BUILDING CATEGORIES</h3>
+              <div class="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div class="text-white font-bold mb-2">HEADQUARTERS</div>
+                  <p class="text-gray-400">Central command structures with symmetrical designs</p>
+                </div>
+                <div>
+                  <div class="text-white font-bold mb-2">RESIDENTIAL</div>
+                  <p class="text-gray-400">Housing units with vertical and modular architecture</p>
+                </div>
+                <div>
+                  <div class="text-white font-bold mb-2">EXTRACTION</div>
+                  <p class="text-gray-400">Mining and resource gathering facilities</p>
+                </div>
+                <div>
+                  <div class="text-white font-bold mb-2">INDUSTRIAL</div>
+                  <p class="text-gray-400">Production and energy generation complexes</p>
+                </div>
+                <div>
+                  <div class="text-white font-bold mb-2">TECHNOLOGY</div>
+                  <p class="text-gray-400">Research and computation centers</p>
+                </div>
+                <div>
+                  <div class="text-white font-bold mb-2">AEROSPACE</div>
+                  <p class="text-gray-400">Orbital infrastructure and launch facilities</p>
+                </div>
+                <div>
+                  <div class="text-white font-bold mb-2">LOGISTICS</div>
+                  <p class="text-gray-400">Storage and distribution hubs</p>
+                </div>
+              </div>
+            </div>
+          </GlassPanel>
           </Show>
         </section>
 

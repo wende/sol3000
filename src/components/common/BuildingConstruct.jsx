@@ -440,22 +440,27 @@ export const BuildingConstruct = (props) => {
 
       <style>{`
         .building-construct--interactive:hover .building-construct__block {
-          border-color: rgba(255, 255, 255, 0.3);
+          border-color: rgba(255, 255, 255, 0.3) !important;
         }
 
         .building-construct--interactive:hover .building-construct__block--structure {
-          background-color: rgba(255, 255, 255, 0.12);
-          transform: scale(1.02);
+          background-color: rgba(255, 255, 255, 0.12) !important;
+          transform: scale(1.02) !important;
         }
 
         .building-construct--interactive:hover .building-construct__block--core {
-          box-shadow: 0 0 50px rgba(255, 255, 255, 0.9);
-          transform: scale(1.05);
+          box-shadow: 0 0 50px rgba(255, 255, 255, 0.9) !important;
+          transform: scale(1.05) !important;
         }
 
         .building-construct--interactive:hover .building-construct__block--depth {
-          transform: scale(1);
-          background-color: rgba(255, 255, 255, 0.09);
+          transform: scale(1) !important;
+          background-color: rgba(255, 255, 255, 0.09) !important;
+        }
+
+        .building-construct--interactive:hover .building-construct__block--accent {
+          background-color: rgba(255, 255, 255, 0.2) !important;
+          border-color: rgba(255, 255, 255, 0.4) !important;
         }
 
         .building-construct--interactive:hover .building-construct__label {
