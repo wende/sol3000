@@ -285,7 +285,7 @@ describe('gameState', () => {
     });
 
     it('should have valid production values', () => {
-      expect(BUILDINGS.oreMine.production.metals).toBeGreaterThan(0);
+      expect(BUILDINGS.oreMine.supplyPerLevel).toBeGreaterThan(0); // oreMine provides supply, not metals production
       expect(BUILDINGS.solarPlant.energyCapacity).toBeGreaterThan(0); // Provides capacity, not production
       expect(BUILDINGS.tradeHub.production.credits).toBeGreaterThan(0);
     });

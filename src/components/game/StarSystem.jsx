@@ -2,6 +2,7 @@ import { Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-j
 import { Star } from './Star';
 import { MarketBadge } from './MarketBadge';
 import { SystemProgressRing } from './SystemProgressRing';
+import { BUILDINGS } from '../../utils/gameState/buildings';
 
 /**
  * @typedef {Object} StarSystemProps
@@ -35,7 +36,10 @@ import { SystemProgressRing } from './SystemProgressRing';
 export const StarSystem = (props) => {
   const isOwned = () => props.system.owner === 'Player';
   const metals = () => props.system.market?.metals;
-  const hasMetalsSupply = () => (metals()?.supply || 0) > 0;
+  // Supply comes from oreMine buildings for Player-owned systems
+  const oreMineLevel = () => props.system.buildings?.oreMine?.level || 0;
+  const metalsSupply = () => isOwned() ? oreMineLevel() * BUILDINGS.oreMine.supplyPerLevel : 0;
+  const hasMetalsSupply = () => metalsSupply() > 0;
   const hasMetalsDemand = () => (metals()?.demand || 0) > 0;
 
   // Simple LOD class based on zoom level (only applies when zoomed out)
@@ -99,7 +103,7 @@ export const StarSystem = (props) => {
     >
       <title>
         {props.system.name}
-        {hasMetalsSupply() ? `\nMetals Supply: ${metals().supply}` : ''}
+        {hasMetalsSupply() ? `\nMetals Supply: ${metalsSupply()}` : ''}
         {hasMetalsDemand() ? `\nMetals Demand: ${metals().demand}` : ''}
       </title>
 

@@ -152,11 +152,8 @@ describe('generateGalaxy', () => {
         expect(metals).toHaveProperty('demand');
         expect(typeof metals.supply).toBe('number');
         expect(typeof metals.demand).toBe('number');
-        expect(metals.supply).toBeGreaterThanOrEqual(0);
-        expect(metals.demand).toBeGreaterThanOrEqual(0);
-
-        // For now generation produces either supply OR demand (not both).
-        expect((metals.supply > 0) !== (metals.demand > 0)).toBe(true);
+        expect(metals.supply).toBe(0); // No metal providers exist
+        expect(metals.demand).toBeGreaterThan(0); // All markets have demand
       });
     });
   });

@@ -5,11 +5,12 @@ export const BUILDINGS = {
   oreMine: {
     id: 'oreMine',
     name: 'Metals Extractor',
-    description: 'Extracts raw metals from the planet.',
+    description: 'Extracts raw metals, making this system a metals supplier.',
     baseCost: { credits: 50 },
     costFactor: 1.15,
     buildTimeFactor: 1.5,
-    production: { metals: 0.5, credits: 0 },
+    production: { metals: 0, credits: 0 },
+    supplyPerLevel: 200, // Each level adds 200 to system's metals supply
     energyUsage: 2,
     buildTime: 3000
   },

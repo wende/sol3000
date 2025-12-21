@@ -6,6 +6,7 @@ import { SystemProgressRing } from './SystemProgressRing';
 import { SPECTRAL_CLASSES } from '../../utils/galaxy';
 import { BuildingList } from './BuildingList';
 import { PlanetConstruct, PlanetConstructSVG, mapPlanetTypeToConstruct } from '../common/PlanetConstruct';
+import { BUILDINGS } from '../../utils/gameState/buildings';
 
 /**
  * System View Component
@@ -116,11 +117,15 @@ export const SystemView = (props) => {
                   <div>
                      <div class="text-[10px] text-gray-500 tracking-widest mb-1">METALS</div>
                      <div class="text-sm text-white font-mono">
-                        {system().market?.metals?.supply > 0
-                          ? `SUP ${system().market.metals.supply}`
-                          : system().market?.metals?.demand > 0
-                          ? `DEM ${system().market.metals.demand}`
-                          : '—'}
+                        {(() => {
+                          const isPlayerOwned = system().owner === 'Player';
+                          const oreMineLevel = system().buildings?.oreMine?.level || 0;
+                          const supply = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
+                          const demand = system().market?.metals?.demand || 0;
+                          if (supply > 0) return `SUP ${supply}`;
+                          if (demand > 0) return `DEM ${demand}`;
+                          return '—';
+                        })()}
                      </div>
                   </div>
                </div>

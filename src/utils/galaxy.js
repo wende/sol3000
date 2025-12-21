@@ -288,8 +288,6 @@ export const CENTER_Y = MAP_HEIGHT / 2;
 
 // Market generation constants
 export const METALS_MARKET_CHANCE = 0.55; // chance a system has any Metals market role
-export const METALS_SUPPLY_CHANCE = 0.5; // when present, chance it's supply vs demand
-export const METALS_SUPPLY_RANGE = [200, 1200];
 export const METALS_DEMAND_RANGE = [200, 1200];
 
 function randomIntInclusive(min, max) {
@@ -299,19 +297,7 @@ function randomIntInclusive(min, max) {
 function generateMetalsMarket(resources) {
   if (Math.random() > METALS_MARKET_CHANCE) return null;
 
-  // Slight bias: rich systems more likely to be suppliers.
-  const bias =
-    resources === 'Rich' ? 0.12 :
-    resources === 'Poor' ? -0.12 :
-    0;
-
-  const isSupply = Math.random() < Math.min(1, Math.max(0, METALS_SUPPLY_CHANCE + bias));
-
-  if (isSupply) {
-    const [min, max] = METALS_SUPPLY_RANGE;
-    return { metals: { supply: randomIntInclusive(min, max), demand: 0 } };
-  }
-
+  // All systems with a metals market have demand only
   const [min, max] = METALS_DEMAND_RANGE;
   return { metals: { supply: 0, demand: randomIntInclusive(min, max) } };
 }

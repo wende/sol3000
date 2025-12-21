@@ -15,6 +15,8 @@ import { Show, createMemo } from 'solid-js';
  * @property {boolean} tradeReverse - Whether flow direction should be reversed (demand→supply in route coords)
  * @property {Function} onSelect - Callback when route is selected
  * @property {number} [throughput] - Flow throughput on this route (optional)
+ * @property {Object} [tradeFlows] - Trade flow data with satisfaction info
+ * @property {number} [demandSystemId] - ID of the demand system for satisfaction lookup
  */
 
 /**
@@ -77,6 +79,30 @@ export const FTLRoute = (props) => {
     if (props.isSelected) return `ftl-line-trade-flow ${direction} selected`;
     return `ftl-line-trade-flow ${direction}`;
   };
+
+  // Calculate animation density based on demand satisfaction
+  // 100% satisfaction = normal density (1, 14)
+  // Lower satisfaction = sparser animation (larger gap)
+  const dashPattern = createMemo(() => {
+    // Look up satisfaction reactively from tradeFlows
+    const demandSatisfaction = props.tradeFlows?.systemSatisfaction?.get(props.demandSystemId);
+    const ratio = demandSatisfaction?.ratio || 0;
+
+    if (ratio <= 0) return '1, 14'; // Default when no flow
+
+    // At 100% satisfaction: gap = 14
+    // At lower satisfaction: gap increases proportionally
+    // Formula: gap = 14 / ratio
+    // Examples:
+    //   100% (1.0) -> 1, 14 (normal density)
+    //   50% (0.5)  -> 1, 28 (half as dense)
+    //   25% (0.25) -> 1, 56 (quarter as dense)
+    const baseGap = 14;
+    const gap = Math.round(baseGap / ratio);
+    const pattern = `1, ${gap}`;
+    console.log(`📊 Route ${props.routeId} animation update: ratio=${ratio.toFixed(3)}, pattern=${pattern} (satisfied: ${demandSatisfaction?.satisfied || 0}/${demandSatisfaction?.total || 0})`);
+    return pattern;
+  });
 
   // Determine opacity: fade-in animation handles its own opacity
   const getOpacityStyle = () => {
@@ -204,7 +230,10 @@ export const FTLRoute = (props) => {
           x2={props.route.target.x}
           y2={props.route.target.y}
           class={`${tradeFlowClass()} ${props.shouldFadeIn ? 'fog-fade-in' : ''}`}
-          style={getOpacityStyle()}
+          style={{
+            ...getOpacityStyle(),
+            'stroke-dasharray': dashPattern()
+          }}
         />
         {/* Throughput label */}
         <Show when={throughputText()}>

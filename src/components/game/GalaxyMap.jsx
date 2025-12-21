@@ -5,6 +5,7 @@ import { FTLTethers } from './FTLTethers';
 import { FTLRoute } from './FTLRoute';
 import { StarSystem } from './StarSystem';
 import { useZoomableSvg } from '../../hooks/useZoomableSvg';
+import { BUILDINGS } from '../../utils/gameState/buildings';
 
 /**
  * @typedef {Object} GalaxyMapProps
@@ -333,7 +334,17 @@ export const GalaxyMap = (props) => {
     return isNewlyRevealed(route.source.id) || isNewlyRevealed(route.target.id);
   };
 
-  const hasMetalsSupply = (system) => (system?.market?.metals?.supply || 0) > 0;
+  // Create a memo for quick system lookup by ID (ensures fresh data)
+  const systemMap = createMemo(() =>
+    new Map(props.data.systems.map(s => [s.id, s]))
+  );
+
+  // Supply comes from oreMine buildings for Player-owned systems
+  const hasMetalsSupply = (system) => {
+    if (system?.owner !== 'Player') return false;
+    const oreMineLevel = system.buildings?.oreMine?.level || 0;
+    return oreMineLevel > 0;
+  };
   const hasMetalsDemand = (system) => (system?.market?.metals?.demand || 0) > 0;
 
   // Debug: Log route states when they change
@@ -367,9 +378,11 @@ export const GalaxyMap = (props) => {
       if (tradeRoutes.length > 0) {
         console.log(`🔵 Trade routes (should have ANIMATED flow):`);
         tradeRoutes.forEach(route => {
-          const sourceSupply = route.source.market?.metals?.supply || 0;
+          const sourceOreMine = route.source.buildings?.oreMine?.level || 0;
+          const sourceSupply = route.source.owner === 'Player' ? sourceOreMine * BUILDINGS.oreMine.supplyPerLevel : 0;
           const sourceDemand = route.source.market?.metals?.demand || 0;
-          const targetSupply = route.target.market?.metals?.supply || 0;
+          const targetOreMine = route.target.buildings?.oreMine?.level || 0;
+          const targetSupply = route.target.owner === 'Player' ? targetOreMine * BUILDINGS.oreMine.supplyPerLevel : 0;
           const targetDemand = route.target.market?.metals?.demand || 0;
           console.log(`  ${route.id}: ${route.source.name} (S:${sourceSupply} D:${sourceDemand}) ↔ ${route.target.name} (S:${targetSupply} D:${targetDemand})`);
         });
@@ -497,13 +510,20 @@ export const GalaxyMap = (props) => {
               // Use the route's existing ID (which is sorted: smaller-id-first)
               const routeId = route.id;
 
+              // Look up fresh system data (route.source/target may be stale)
+              const sourceSystem = systemMap().get(route.source.id);
+              const targetSystem = systemMap().get(route.target.id);
+
               const connectsMetalsSupplyDemand =
-                (hasMetalsSupply(route.source) && hasMetalsDemand(route.target)) ||
-                (hasMetalsDemand(route.source) && hasMetalsSupply(route.target));
-              const tradeReverse = hasMetalsDemand(route.source) && hasMetalsSupply(route.target);
+                (hasMetalsSupply(sourceSystem) && hasMetalsDemand(targetSystem)) ||
+                (hasMetalsDemand(sourceSystem) && hasMetalsSupply(targetSystem));
+              const tradeReverse = hasMetalsDemand(sourceSystem) && hasMetalsSupply(targetSystem);
+
+              // Determine demand system ID for satisfaction lookup
+              const demandSystemId = tradeReverse ? sourceSystem.id : targetSystem.id;
 
               // Check if route is visible in the current fog of war state (ignoring transition)
-              const isNaturallyVisible = props.visibleSystems?.visibleIds?.has(route.source.id) && 
+              const isNaturallyVisible = props.visibleSystems?.visibleIds?.has(route.source.id) &&
                                        props.visibleSystems?.visibleIds?.has(route.target.id);
 
               return (
@@ -520,6 +540,8 @@ export const GalaxyMap = (props) => {
                   tradeReverse={tradeReverse}
                   onSelect={props.onTetherSelect}
                   throughput={props.tradeFlows?.routeThroughput?.get(routeId)}
+                  tradeFlows={props.tradeFlows}
+                  demandSystemId={demandSystemId}
                 />
               );
             }}

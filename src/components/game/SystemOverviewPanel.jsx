@@ -5,6 +5,7 @@ import { StatBlock } from '../common/StatBlock';
 import { StatLabel } from '../common/StatLabel';
 import { ConstructionQueueItem } from './ConstructionQueueItem';
 import { getScanInfo, SCAN_COST } from '../../operations/scan';
+import { BUILDINGS } from '../../utils/gameState/buildings';
 
 /**
  * @typedef {Object} SystemOverviewPanelProps
@@ -65,22 +66,32 @@ export const SystemOverviewPanel = (props) => {
   return (
     <>
       {/* Market Display */}
-      <Show when={props.system.market?.metals && (props.system.market.metals.supply > 0 || props.system.market.metals.demand > 0)}>
+      <Show when={(() => {
+        const isPlayerOwned = props.system.owner === 'Player';
+        const oreMineLevel = props.system.buildings?.oreMine?.level || 0;
+        const supply = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
+        const demand = props.system.market?.metals?.demand || 0;
+        return supply > 0 || demand > 0;
+      })()}>
         {(() => {
-          const isSupply = props.system.market.metals.supply > 0;
-          const total = isSupply ? props.system.market.metals.supply : props.system.market.metals.demand;
+          const isPlayerOwned = props.system.owner === 'Player';
+          const oreMineLevel = props.system.buildings?.oreMine?.level || 0;
+          const supply = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
+          const demand = props.system.market?.metals?.demand || 0;
+          const isSupply = supply > 0;
+          const total = isSupply ? supply : demand;
           const satisfaction = props.tradeFlows?.systemSatisfaction?.get(props.system.id);
-          const flowAmount = satisfaction
-            ? (isSupply ? Math.round(satisfaction.used || 0) : Math.round(satisfaction.satisfied || 0))
-            : 0;
+          const exported = satisfaction && isSupply ? Math.round(satisfaction.used || 0) : 0;
+          const satisfied = satisfaction && !isSupply ? Math.round(satisfaction.satisfied || 0) : 0;
+          const unexported = isSupply ? total - exported : 0;
 
           return (
             <StatBlock label="METALS MARKET">
               <div class="flex items-center justify-between p-3 rounded-sm">
                 <StatLabel label="ROLE" value={isSupply ? 'SUPPLY' : 'DEMAND'} />
                 <StatLabel
-                  label={isSupply ? 'EXPORTED' : 'SATISFIED'}
-                  value={`${flowAmount}/${total}`}
+                  label={isSupply ? 'AVAILABLE' : 'SATISFIED'}
+                  value={isSupply ? `${unexported}/${total}` : `${satisfied}/${total}`}
                   large={true}
                   class="items-end text-right"
                 />

@@ -1,4 +1,18 @@
 import { satisfyDemands } from '../production';
+import { BUILDINGS } from './buildings';
+
+/**
+ * Calculate metals supply for a system based on oreMine levels.
+ * Player-owned systems get supply from their Metals Extractor buildings.
+ */
+function getSystemSupply(system) {
+  if (system.owner !== 'Player') return 0;
+
+  const oreMineLevel = system.buildings?.oreMine?.level || 0;
+  if (oreMineLevel === 0) return 0;
+
+  return oreMineLevel * BUILDINGS.oreMine.supplyPerLevel;
+}
 
 export function computeTradeFlows(galaxy, builtFTLSet) {
   if (!galaxy.systems.length || builtFTLSet.size === 0) {
@@ -13,39 +27,57 @@ export function computeTradeFlows(galaxy, builtFTLSet) {
   const consumers = [];
 
   for (const system of galaxy.systems) {
-    const market = system.market?.metals;
-    if (!market) continue;
-
-    if (market.supply > 0) {
-      producers.push({ id: system.id, supply: market.supply });
+    // Supply comes from oreMine buildings (Player-owned systems only)
+    const supply = getSystemSupply(system);
+    if (supply > 0) {
+      producers.push({ id: system.id, supply });
+      console.log(`📦 Producer found: ${system.name} (ID:${system.id}) - Supply: ${supply}`);
     }
-    if (market.demand > 0) {
-      consumers.push({ id: system.id, demand: market.demand });
+
+    // Demand comes from static market data
+    const demand = system.market?.metals?.demand || 0;
+    if (demand > 0) {
+      consumers.push({ id: system.id, demand });
+      console.log(`🏭 Consumer found: ${system.name} (ID:${system.id}) - Demand: ${demand}`);
     }
   }
+
+  // Create a map for quick system lookup
+  const systemMap = new Map(galaxy.systems.map(s => [s.id, s]));
 
   const links = [];
   for (const route of galaxy.routes) {
     const routeId = route.id;
     if (!builtFTLSet.has(routeId)) continue;
 
-    const sourceMarket = route.source.market?.metals;
-    const targetMarket = route.target.market?.metals;
+    // Look up fresh system data (route.source/target may be stale)
+    const sourceSystem = systemMap.get(route.source.id);
+    const targetSystem = systemMap.get(route.target.id);
 
-    const sourceHasSupply = (sourceMarket?.supply || 0) > 0;
-    const sourceHasDemand = (sourceMarket?.demand || 0) > 0;
-    const targetHasSupply = (targetMarket?.supply || 0) > 0;
-    const targetHasDemand = (targetMarket?.demand || 0) > 0;
+    if (!sourceSystem || !targetSystem) continue;
 
-    if (sourceHasSupply && targetHasDemand) {
-      links.push({ producerId: route.source.id, consumerId: route.target.id, routeId });
+    // Supply comes from oreMine buildings
+    const sourceSupply = getSystemSupply(sourceSystem);
+    const targetSupply = getSystemSupply(targetSystem);
+
+    // Demand comes from market data
+    const sourceDemand = sourceSystem.market?.metals?.demand || 0;
+    const targetDemand = targetSystem.market?.metals?.demand || 0;
+
+    if (sourceSupply > 0 && targetDemand > 0) {
+      links.push({ producerId: sourceSystem.id, consumerId: targetSystem.id, routeId });
+      console.log(`🔗 Link created: ${sourceSystem.name} (S:${sourceSupply}) → ${targetSystem.name} (D:${targetDemand})`);
     }
-    if (targetHasSupply && sourceHasDemand) {
-      links.push({ producerId: route.target.id, consumerId: route.source.id, routeId });
+    if (targetSupply > 0 && sourceDemand > 0) {
+      links.push({ producerId: targetSystem.id, consumerId: sourceSystem.id, routeId });
+      console.log(`🔗 Link created: ${targetSystem.name} (S:${targetSupply}) → ${sourceSystem.name} (D:${sourceDemand})`);
     }
   }
 
+  console.log(`💼 Trade summary: ${producers.length} producers, ${consumers.length} consumers, ${links.length} links`);
+
   if (producers.length === 0 || consumers.length === 0 || links.length === 0) {
+    console.log(`❌ No trade flows: missing ${producers.length === 0 ? 'producers ' : ''}${consumers.length === 0 ? 'consumers ' : ''}${links.length === 0 ? 'links' : ''}`);
     return {
       flows: [],
       systemSatisfaction: new Map(),
@@ -54,6 +86,7 @@ export function computeTradeFlows(galaxy, builtFTLSet) {
   }
 
   const result = satisfyDemands({ producers, consumers, links });
+  console.log(`✅ Trade flows computed:`, result.flows);
 
   const systemSatisfaction = new Map();
   for (const producer of producers) {

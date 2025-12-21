@@ -53,18 +53,9 @@ export function migrateSaveData(galaxyData) {
 
     if (Math.random() > 0.55) return { ...s, market: null };
 
-    const bias =
-      s.resources === 'Rich' ? 0.12 :
-      s.resources === 'Poor' ? -0.12 :
-      0;
-
-    const isSupply = Math.random() < Math.min(1, Math.max(0, 0.5 + bias));
     const randomInt = (min, max) => Math.floor(min + Math.random() * (max - min + 1));
 
-    if (isSupply) {
-      return { ...s, market: { metals: { supply: randomInt(200, 1200), demand: 0 } } };
-    }
-
+    // All systems with a metals market have demand only
     return { ...s, market: { metals: { supply: 0, demand: randomInt(200, 1200) } } };
   });
 
