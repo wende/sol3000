@@ -1,0 +1,201 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* Void Construct Station Styles */
+.void-construct-station {
+  --void-bg: #000000;
+  --void-depth: rgba(255, 255, 255, 0.1);
+  --void-structure: rgba(255, 255, 255, 0.2);
+  --void-accent: rgba(255, 255, 255, 0.3);
+  --void-border: rgba(255, 255, 255, 0.4);
+  --void-core: #FFFFFF;
+  --void-glow: 0 0 20px rgba(255, 255, 255, 0.6);
+
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* UTILITY CLASSES FOR VOID CONSTRUCT */
+.v-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  width: 100%;
+  height: 100%;
+}
+
+.v-depth {
+  background-color: var(--void-depth);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.v-structure {
+  background-color: var(--void-structure);
+  border: 1px solid var(--void-border);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.v-structure-light {
+  background-color: var(--void-structure);
+  border: none; /* Seamless connection */
+}
+
+.v-accent {
+  background-color: var(--void-accent);
+  backdrop-filter: blur(2px);
+}
+
+.v-core {
+  background-color: var(--void-core);
+  box-shadow: var(--void-glow);
+  z-index: 10;
+}
+
+/* ANIMATIONS */
+.hover-trigger:hover .v-structure {
+  background-color: var(--void-accent);
+  transform: scale(1.02);
+  z-index: 5;
+}
+
+.hover-trigger:hover .rotate-anim {
+  animation: rotate-slow 4s linear infinite;
+}
+
+.hover-trigger:hover .pulse-anim {
+  animation: pulse-core 2s infinite ease-in-out;
+}
+
+.selected-cell-anim {
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-core {
+  0% { opacity: 0.8; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+  50% { opacity: 1; box-shadow: 0 0 25px rgba(255,255,255,0.8); }
+  100% { opacity: 0.8; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+}
+
+@keyframes pulse-border {
+  0% { border-color: rgba(255,255,255,0.2); box-shadow: inset 0 0 0px rgba(255,255,255,0); }
+  50% { border-color: rgba(255,255,255,1); box-shadow: inset 0 0 20px rgba(255,255,255,0.2); }
+  100% { border-color: rgba(255,255,255,0.2); box-shadow: inset 0 0 0px rgba(255,255,255,0); }
+}
+
+/* CHARACTER */
+.character {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--void-core);
+  border-radius: 50%;
+  box-shadow: var(--void-glow);
+  transition: top 1s linear, left 1s linear;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* UI ELEMENTS */
+.ui-panel {
+  background: rgba(0,0,0,0.9);
+  border: 1px solid var(--void-border);
+  backdrop-filter: blur(4px);
+}
+
+.tool-btn {
+  transition: all 0.2s ease;
+}
+.tool-btn:hover {
+  background: var(--void-structure);
+}
+.tool-btn.active {
+  background: var(--void-accent);
+  border: 1px solid var(--void-core);
+}
+
+/* UTILS */
+.cursor-grab {
+  cursor: grab;
+}
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* SCROLLBAR */
+.void-construct-station ::-webkit-scrollbar {
+  width: 6px;
+}
+.void-construct-station ::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.5);
+}
+.void-construct-station ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+}
+.void-construct-station ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.4);
+}
+
+/* Build menu centering wrapper */
+.build-menu-wrapper {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.build-menu-wrapper > * {
+  pointer-events: auto;
+}
+
+/* Animation helpers */
+.animate-in {
+  animation: animateIn 0.2s ease-out forwards;
+}
+
+.slide-in-from-bottom-4 {
+  --tw-enter-translate-y: 1rem;
+}
+
+@keyframes animateIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--tw-enter-translate-y, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ping animation for selection indicator */
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Coordinate stream animation */
+.coordinate-dot {
+  animation: coordinatePulse 2.5s ease-in-out infinite;
+  opacity: 0.1;
+}
+
+@keyframes coordinatePulse {
+  0%, 100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
