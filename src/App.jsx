@@ -6,6 +6,7 @@ import { HexGrid } from './components/game/HexGrid';
 import { HexBuildingMenu } from './components/game/HexBuildingMenu';
 import { Sidebar } from './components/game/Sidebar';
 import { CommandBar } from './components/game/CommandBar';
+import { StatsPanel } from './components/game/StatsPanel';
 import { BackgroundGrid } from './components/common/BackgroundGrid';
 import { StartGameButton } from './components/common/StartGameButton';
 import { VignetteOverlay } from './components/common/VignetteOverlay';
@@ -271,6 +272,15 @@ export default function App() {
 
       {/* 3. UI Overlays - only shown when game is active */}
       <Show when={hasGameStarted()}>
+        {/* Stats Panel - Top left, shows global credits (galaxy view only) */}
+        <div class={`absolute top-0 left-0 z-40 transition-all duration-500 ${gameState.viewState() === 'galaxy' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
+          <StatsPanel
+            credits={gameState.credits()}
+            creditsRate={gameState.creditsRate()}
+            tech={gameState.tech()}
+          />
+        </div>
+
         {/* Sidebar now handles system and tether selection */}
         {/* We rely on Sidebar.jsx to check viewState for its own slide animation */}
         <Sidebar

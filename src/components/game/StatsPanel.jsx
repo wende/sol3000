@@ -2,21 +2,18 @@ import { Show } from 'solid-js';
 import { GlassPanel } from '../common/GlassPanel';
 import { ProgressBar } from '../common/ProgressBar';
 import { StatBlock } from '../common/StatBlock';
-import { ResourceStat } from './ResourceStat';
-import { EnergyStat } from './EnergyStat';
+import { formatNumber, formatRate } from '../../utils/format';
 
 /**
  * @typedef {Object} StatsPanelProps
- * @property {{ metals: number, credits: number }} resources - Current resources
- * @property {{ metals: number, credits: number }} productionRates - Production per second
- * @property {{ capacity: number, usage: number }} energyState - Energy capacity and usage
- * @property {number} systemsOwned - Number of systems owned by player
- * @property {number} maxSystems - Total number of systems
+ * @property {number} credits - Global credits
+ * @property {number} creditsRate - Credits production per second
  * @property {{ researched: string[], current: object|null }} tech - Tech state
  */
 
 /**
  * Panel displaying real-time game statistics.
+ * Shows only global credits - metals and energy are now per-system.
  *
  * @param {StatsPanelProps} props
  */
@@ -33,56 +30,32 @@ export const StatsPanel = (props) => {
   return (
     <GlassPanel
       id="stats-panel"
-      class="absolute top-6 left-6 w-[300px] p-6 slide-in-left z-40"
+      class="absolute top-6 left-6 px-4 py-12 slide-in-left z-40"
     >
-      {/* Resources Section */}
-      <div class="space-y-6 mb-6">
-        <ResourceStat
-          label="METALS"
-          value={props.resources.metals}
-          rate={props.productionRates.metals}
-          id="stats-metals-value"
-        />
-
-        <EnergyStat
-          capacity={props.energyState?.capacity}
-          usage={props.energyState?.usage}
-        />
-
-        <ResourceStat
-          label="CREDITS"
-          value={props.resources.credits}
-          rate={props.productionRates.credits}
-          id="stats-credits-value"
-        />
-      </div>
-
-      {/* Divider */}
-      <div class="my-6" />
-
-      {/* Dominion */}
-      <StatBlock label="DOMINION">
-        <div class="flex items-end justify-between mb-2">
-          <span id="stats-dominion-value" class="text-lg text-white font-light">
-            {props.systemsOwned} <span class="text-xs text-gray-500">SYS</span>
+      {/* Global Credits */}
+      <div class="flex items-center gap-4">
+        <span class="text-[10px] text-gray-400 tracking-widest">CREDITS</span>
+        <span id="stats-credits-value" class="text-lg text-white font-light tabular-nums">
+          {formatNumber(props.credits)}
+        </span>
+        <Show when={props.creditsRate !== undefined}>
+          <span class="text-[10px] text-green-400 tabular-nums">
+            {formatRate(props.creditsRate)}/s
           </span>
-          <span class="text-xs text-gray-500">{Math.round((props.systemsOwned / props.maxSystems) * 100)}%</span>
-        </div>
-        <ProgressBar
-          progress={(props.systemsOwned / props.maxSystems) * 100}
-          glow={true}
-        />
-      </StatBlock>
+        </Show>
+      </div>
 
       {/* Tech Research Progress */}
       <Show when={props.tech?.current}>
-        <StatBlock label="RESEARCHING">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs text-blue-300">{props.tech?.current?.id?.charAt(0).toUpperCase() + props.tech?.current?.id?.slice(1).replace(/([A-Z])/g, ' $1').trim()}</span>
-            <span class="text-[10px] text-gray-500">{Math.floor(techProgress()?.remaining || 0)}s</span>
-          </div>
-          <ProgressBar progress={techProgress()?.progress || 0} color="#60a5fa" />
-        </StatBlock>
+        <div class="mt-4 pt-4 border-t border-white/10">
+          <StatBlock label="RESEARCHING">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-blue-300">{props.tech?.current?.id?.charAt(0).toUpperCase() + props.tech?.current?.id?.slice(1).replace(/([A-Z])/g, ' $1').trim()}</span>
+              <span class="text-[10px] text-gray-500">{Math.floor(techProgress()?.remaining || 0)}s</span>
+            </div>
+            <ProgressBar progress={techProgress()?.progress || 0} color="#60a5fa" />
+          </StatBlock>
+        </div>
       </Show>
 
     </GlassPanel>

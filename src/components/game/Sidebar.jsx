@@ -102,14 +102,10 @@ export const Sidebar = (props) => {
 
       <div
         class={`fixed top-0 right-0 h-full z-50 transform transition-all duration-500 ease-out ${isOpen() ? 'translate-x-0 opacity-100 pointer-events-auto' : 'translate-x-10 opacity-0 pointer-events-none'}`}
-        style={{ "will-change": "transform, opacity" }}
       >
         <GlassPanel
           id="sidebar-panel"
           class={`h-full ${view() === 'launch' ? 'sidebar-launch' : 'sidebar-overview'}`}
-          style={{
-            "will-change": "width, opacity",
-          }}
         >
           <SidebarHeader
             system={props.system}

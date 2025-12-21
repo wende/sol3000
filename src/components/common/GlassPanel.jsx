@@ -21,7 +21,7 @@ export const GlassPanel = (props) => {
 
   // Define background colors for each variant
   const variantBackgrounds = {
-    default: "rgba(0, 0, 0, 0.9)",
+    default: "rgba(0, 0, 0, 0.4)",
     highlighted: "rgba(59, 130, 246, 0.1)",
     warning: "rgba(239, 68, 68, 0.1)",
     selected: "rgba(59, 130, 246, 0.15)",

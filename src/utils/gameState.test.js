@@ -18,6 +18,17 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true
 });
 
+// Helper to set up resources on a system
+// Since resources are now per-system (metals, energy) and global (credits)
+const setTestResources = (gameState, systemId, { metals = 100, credits = 200 }) => {
+  gameState.setCredits(credits);
+  const galaxy = gameState.galaxyData();
+  const updatedSystems = galaxy.systems.map(s =>
+    s.id === systemId ? { ...s, localResources: { metals } } : s
+  );
+  gameState.setGalaxyData({ ...galaxy, systems: updatedSystems });
+};
+
 describe('gameState', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -301,7 +312,7 @@ describe('gameState', () => {
         expect(homeId).not.toBeNull();
 
         // Give enough resources for multiple buildings
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        setTestResources(gameState, homeId, { metals: 1000, credits: 1000 });
 
         // Queue two buildings
         const result1 = gameState.startConstruction(homeId, 'building', 'oreMine');
@@ -337,7 +348,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        setTestResources(gameState, homeId, { metals: 1000, credits: 1000 });
 
         // Queue two buildings
         gameState.startConstruction(homeId, 'building', 'solarPlant'); // 2s build time
@@ -375,7 +386,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 2000, credits: 2000 });
+        setTestResources(gameState, homeId, { metals: 2000, credits: 2000 });
 
         // Queue three buildings
         gameState.startConstruction(homeId, 'building', 'oreMine');
@@ -479,21 +490,22 @@ describe('gameState', () => {
         const homeId = gameState.homeSystemId();
 
         // Build metals extractors to increase production dramatically
-        gameState.setResources({ metals: 950000000, credits: 950000000 }); // Very close to cap of 1e9
+        setTestResources(gameState, homeId, { metals: 950000000, credits: 950000000 }); // Very close to cap of 1e9
 
         // Simulate continued gameplay to verify caps are enforced
         for (let i = 0; i < 1000; i++) {
           vi.advanceTimersByTime(100);
         }
 
-        const resources = gameState.resources();
+        const systemResources = gameState.getSystemResources(homeId);
+        const globalCredits = gameState.credits();
         // Resources should never exceed 1 billion (1e9) even with production
-        expect(resources.metals).toBeLessThanOrEqual(1e9);
-        expect(resources.credits).toBeLessThanOrEqual(1e9);
+        expect(systemResources.metals).toBeLessThanOrEqual(1e9);
+        expect(globalCredits).toBeLessThanOrEqual(1e9);
         // Resources may fluctuate due to construction costs and production
         // Just verify they don't overflow
-        expect(Number.isFinite(resources.metals)).toBe(true);
-        expect(Number.isFinite(resources.credits)).toBe(true);
+        expect(Number.isFinite(systemResources.metals)).toBe(true);
+        expect(Number.isFinite(globalCredits)).toBe(true);
 
         gameState.stopGameLoop();
         dispose();
@@ -511,15 +523,15 @@ describe('gameState', () => {
         const homeId = gameState.homeSystemId();
 
         // Start with no buildings
-        const initialResources = gameState.resources();
-        const initialMetals = initialResources.metals;
+        const initialResources = gameState.getSystemResources(homeId);
+        const initialMetals = initialResources?.metals ?? 0;
 
         // Advance time
         vi.advanceTimersByTime(5000);
 
-        const finalResources = gameState.resources();
+        const finalResources = gameState.getSystemResources(homeId);
         // Metals should increase slightly from initial mine, but not change much without energy
-        expect(finalResources.metals).toBeGreaterThanOrEqual(initialMetals);
+        expect(finalResources?.metals ?? 0).toBeGreaterThanOrEqual(initialMetals);
 
         gameState.stopGameLoop();
         dispose();
@@ -537,7 +549,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        setTestResources(gameState, homeId, { metals: 10000, credits: 10000 });
 
         // Build a shipyard and ship
         gameState.startConstruction(homeId, 'building', 'shipyard');
@@ -567,13 +579,13 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 1, credits: 1 }); // Very low resources
+        setTestResources(gameState, homeId, { metals: 1, credits: 1 }); // Very low resources
 
         // Try to build expensive building
         const result = gameState.startConstruction(homeId, 'building', 'shipyard');
 
         expect(result).toBe(false); // Should fail
-        expect(gameState.resources().metals).toBe(1); // Resources unchanged
+        expect(gameState.getSystemResources(homeId).metals).toBe(1); // Resources unchanged
 
         gameState.stopGameLoop();
         dispose();
@@ -589,7 +601,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        setTestResources(gameState, homeId, { metals: 10000, credits: 10000 });
 
         // Try to build colony ship without shipyard
         const result = gameState.startConstruction(homeId, 'ship', 'colonyShip');
@@ -611,7 +623,7 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        gameState.setCredits(10000);
 
         // Try to research advanced tech without prerequisites
         const result = gameState.startResearch('warpDrives'); // Requires advancedReactors
@@ -631,7 +643,7 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        gameState.setCredits(10000);
 
         // Research first tech
         const result1 = gameState.startResearch('efficientMining');
@@ -641,7 +653,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(15000);
 
         // Try to research again
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        gameState.setCredits(10000);
         const result2 = gameState.startResearch('efficientMining');
         expect(result2).toBe(false); // Should fail - already researched
 
@@ -658,13 +670,13 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        gameState.setCredits(10000);
 
         // Start first research
         gameState.startResearch('efficientMining');
 
         // Try to start another while first is ongoing
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        gameState.setCredits(10000);
         const result = gameState.startResearch('tradeNetworks');
 
         expect(result).toBe(false); // Should fail - already researching
@@ -709,7 +721,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 10000, credits: 10000 });
+        gameState.setCredits(10000);
 
         const galaxy = gameState.galaxyData();
         const targetSystem = galaxy.systems.find(s => s.id !== homeId && s.owner === 'Unclaimed');
@@ -735,7 +747,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 10000, credits: 10 }); // Not enough credits
+        gameState.setCredits(10); // Not enough credits
 
         const galaxy = gameState.galaxyData();
         const targetSystem = galaxy.systems.find(s => s.id !== homeId && s.owner === 'Unclaimed');
@@ -758,7 +770,9 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        const energy = gameState.energyState();
+        const homeId = gameState.homeSystemId();
+        const systemRes = gameState.getSystemResources(homeId);
+        const energy = systemRes?.energy;
 
         // Should have starting capacity and usage values
         expect(energy).toBeDefined();
@@ -780,7 +794,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ metals: 50000, credits: 50000 });
+        setTestResources(gameState, homeId, { metals: 50000, credits: 50000 });
 
         // Build 5 metals extractors to increase energy usage
         for (let i = 0; i < 5; i++) {
@@ -790,7 +804,8 @@ describe('gameState', () => {
         // Fast forward through construction
         vi.advanceTimersByTime(50000);
 
-        const energy = gameState.energyState();
+        const systemRes = gameState.getSystemResources(homeId);
+        const energy = systemRes?.energy;
         // Energy calculation should always produce valid numbers
         expect(energy).toBeDefined();
         expect(Number.isFinite(energy.capacity)).toBe(true);
@@ -810,8 +825,8 @@ describe('gameState', () => {
         // Set up a galaxy with route between two Player-owned systems
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
@@ -820,7 +835,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Build FTL - should start construction, not instant build
@@ -829,7 +844,7 @@ describe('gameState', () => {
         expect(gameState.ftlConstruction()).not.toBeNull();
         expect(gameState.ftlConstruction().tetherId).toBe('route-1-2');
         expect(gameState.builtFTLs().has('route-1-2')).toBe(false); // Not built yet
-        expect(gameState.resources().credits).toBe(980); // 20 credits deducted immediately
+        expect(gameState.credits()).toBe(980); // 20 credits deducted immediately
 
         gameState.stopGameLoop();
         dispose();
@@ -843,8 +858,8 @@ describe('gameState', () => {
 
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
@@ -853,7 +868,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Start FTL construction
@@ -880,9 +895,9 @@ describe('gameState', () => {
 
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} },
-            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {}, localResources: { metals: 1000 } },
+            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } },
@@ -892,7 +907,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Start first FTL construction
@@ -917,8 +932,8 @@ describe('gameState', () => {
 
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
@@ -927,7 +942,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Start FTL construction
@@ -940,7 +955,7 @@ describe('gameState', () => {
         expect(gameState.builtFTLs().has('route-1-2')).toBe(false);
 
         // Credits are NOT refunded
-        expect(gameState.resources().credits).toBe(980);
+        expect(gameState.credits()).toBe(980);
 
         gameState.stopGameLoop();
         dispose();
@@ -953,9 +968,9 @@ describe('gameState', () => {
 
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} },
-            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {}, localResources: { metals: 1000 } },
+            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } },
@@ -965,7 +980,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Start first FTL construction
@@ -993,9 +1008,9 @@ describe('gameState', () => {
 
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {} },
-            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 600, y: 600, buildings: {}, localResources: { metals: 1000 } },
+            { id: 3, name: 'System C', owner: 'Player', x: 700, y: 700, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } },
@@ -1005,7 +1020,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Start first FTL construction
@@ -1035,8 +1050,8 @@ describe('gameState', () => {
         // Create systems with known distance: sqrt((700-500)^2 + (500-500)^2) = 200
         const galaxy = {
           systems: [
-            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {} },
-            { id: 2, name: 'System B', owner: 'Player', x: 700, y: 500, buildings: {} }
+            { id: 1, name: 'Home', owner: 'Player', x: 500, y: 500, buildings: {}, localResources: { metals: 1000 } },
+            { id: 2, name: 'System B', owner: 'Player', x: 700, y: 500, buildings: {}, localResources: { metals: 1000 } }
           ],
           routes: [
             { id: 'route-1-2', source: { id: 1, owner: 'Player' }, target: { id: 2, owner: 'Player' } }
@@ -1045,7 +1060,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ metals: 1000, credits: 1000 });
+        gameState.setCredits(1000);
         gameState.startGameLoop();
 
         // Start FTL construction

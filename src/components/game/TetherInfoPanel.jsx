@@ -39,7 +39,7 @@ export const TetherInfoPanel = (props) => {
       return TETHER_STATE.NEEDS_SCAN;
     }
 
-    if (props.gameState.resources().credits < 20) {
+    if (props.gameState.credits() < 20) {
       return TETHER_STATE.INSUFFICIENT_CREDITS;
     }
 

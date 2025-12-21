@@ -33,8 +33,11 @@ const BUILDING_CONSTRUCT_MAP = {
  * @param {BuildingListProps} props
  */
 export function BuildingList(props) {
-  const resources = () => props.gameState.resources();
-  const energyState = () => props.gameState.energyState();
+  // Per-system resources: metals and energy are local to this system
+  const systemMetals = () => props.system?.localResources?.metals ?? 0;
+  const systemEnergy = () => props.system?.localEnergy ?? { capacity: 10, usage: 0 };
+  // Global resource: credits
+  const globalCredits = () => props.gameState.credits();
   const buildings = () => props.system?.buildings || {};
   const constructionQueue = () => props.system?.constructionQueue || [];
 
@@ -43,10 +46,9 @@ export function BuildingList(props) {
   const timer = setInterval(() => setNow(Date.now()), 100);
   onCleanup(() => clearInterval(timer));
 
-  // Check if we can afford a cost (energy is capacity-based, not spent)
+  // Check if we can afford a cost (metals from system, credits from global)
   const canAfford = (cost) => {
-    const res = resources();
-    return res.metals >= cost.metals && res.credits >= cost.credits;
+    return systemMetals() >= cost.metals && globalCredits() >= cost.credits;
   };
 
   // Generic helper for queue state across buildings and ships
@@ -108,24 +110,24 @@ export function BuildingList(props) {
 
   return (
     <div id="building-list-container" class="building-list-container">
-      {/* Resource Header */}
+      {/* Resource Header - shows system-local metals/energy + global credits */}
       <MiniPanel class="resource-bar">
         <div class="resource-item">
           <ResourceIcon type="metals" size={16} />
           <span class="res-label">METALS</span>
-          <span id="res-metals-value" class="res-value">{Math.floor(resources().metals)}</span>
+          <span id="res-metals-value" class="res-value">{Math.floor(systemMetals())}</span>
         </div>
         <div class="resource-item">
           <ResourceIcon type="energy" size={16} />
           <span class="res-label">ENERGY</span>
           <span id="res-energy-value" class={`res-value ${
-            energyState().usage > energyState().capacity ? 'text-red-400' : ''
-          }`}>{energyState().capacity - energyState().usage}/{energyState().capacity}</span>
+            systemEnergy().usage > systemEnergy().capacity ? 'text-red-400' : ''
+          }`}>{systemEnergy().capacity - systemEnergy().usage}/{systemEnergy().capacity}</span>
         </div>
         <div class="resource-item">
           <ResourceIcon type="credits" size={16} />
           <span class="res-label">CREDITS</span>
-          <span id="res-credits-value" class="res-value">{Math.floor(resources().credits)}</span>
+          <span id="res-credits-value" class="res-value">{Math.floor(globalCredits())}</span>
         </div>
       </MiniPanel>
 
@@ -185,12 +187,12 @@ export function BuildingList(props) {
                   </Show>
                   <div class="building-cost">
                     <Show when={cost().metals > 0}>
-                      <span class={resources().metals >= cost().metals ? 'cost-ok' : 'cost-err'}>
+                      <span class={systemMetals() >= cost().metals ? 'cost-ok' : 'cost-err'}>
                         {cost().metals} Metals
                       </span>
                     </Show>
                     <Show when={cost().credits > 0}>
-                      <span class={resources().credits >= cost().credits ? 'cost-ok' : 'cost-err'}>
+                      <span class={globalCredits() >= cost().credits ? 'cost-ok' : 'cost-err'}>
                         {cost().credits} Cr
                       </span>
                     </Show>
@@ -249,10 +251,10 @@ export function BuildingList(props) {
                 <span class="building-name">Colony Ship</span>
               </div>
               <div class="building-cost">
-                <span class={resources().metals >= COLONY_SHIP.cost.metals ? 'cost-ok' : 'cost-err'}>
+                <span class={systemMetals() >= COLONY_SHIP.cost.metals ? 'cost-ok' : 'cost-err'}>
                   {COLONY_SHIP.cost.metals} Metals
                 </span>
-                <span class={resources().credits >= COLONY_SHIP.cost.credits ? 'cost-ok' : 'cost-err'}>
+                <span class={globalCredits() >= COLONY_SHIP.cost.credits ? 'cost-ok' : 'cost-err'}>
                   {COLONY_SHIP.cost.credits} Cr
                 </span>
               </div>

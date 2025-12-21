@@ -30,7 +30,7 @@ export const SystemOverviewPanel = (props) => {
   const scanState = createMemo(() => {
     const scanning = props.gameState.scanningSystem();
     const isScanningThisSystem = scanning?.systemId === props.system.id;
-    const resources = props.gameState.resources();
+    const globalCredits = props.gameState.credits();
 
     if (isScanningThisSystem && scanning) {
       const elapsed = props.now - scanning.startTime;
@@ -42,7 +42,7 @@ export const SystemOverviewPanel = (props) => {
         isScanningThisSystem: true,
         progress,
         remainingSeconds,
-        canAffordScan: resources.credits >= SCAN_COST,
+        canAffordScan: globalCredits >= SCAN_COST,
         scanInfo: null,
       };
     }
@@ -52,7 +52,7 @@ export const SystemOverviewPanel = (props) => {
       isScanningThisSystem: false,
       progress: 0,
       remainingSeconds: 0,
-      canAffordScan: resources.credits >= SCAN_COST,
+      canAffordScan: globalCredits >= SCAN_COST,
       scanInfo: getScanInfo(
         props.gameState.galaxyData(),
         props.gameState.homeSystemId(),

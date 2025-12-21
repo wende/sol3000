@@ -37,23 +37,16 @@ export function createGameState() {
   const [hexBuildings, setHexBuildings] = createSignal({}); // { '0,0': 'nexus', '1,0': 'framework', ... }
   const [hexConstructionQueue, setHexConstructionQueue] = createSignal([]); // [{ hexId, buildingKey, startTime, duration }]
 
-  // Real-time resource signals (energy is now capacity-based, not accumulated)
-  const [resources, setResources] = createSignal({
-    metals: 100,
-    credits: 200
-  });
+  // Global credits (only global resource remaining)
+  const [credits, setCredits] = createSignal(200);
 
-  // Production rates (calculated each tick, exposed for UI)
-  const [productionRates, setProductionRates] = createSignal({
-    metals: 0,
-    credits: 0
-  });
+  // Global credits production rate (calculated each tick, exposed for UI)
+  const [creditsRate, setCreditsRate] = createSignal(0);
 
-  // Energy capacity and usage (static values, not accumulated)
-  const [energyState, setEnergyState] = createSignal({
-    capacity: 10, // Starting energy capacity
-    usage: 0
-  });
+  // NOTE: Metals and Energy are now per-system, stored on each system object:
+  //   system.localResources = { metals: number }
+  //   system.localEnergy = { capacity: number, usage: number }
+  //   system.productionRates = { metals: number, credits: number }
 
   // Ships in transit
   const [ships, setShips] = createSignal([]);
@@ -193,37 +186,34 @@ export function createGameState() {
   };
 
   /**
-   * Calculate energy capacity and usage across all owned systems
+   * Calculate energy capacity and usage for a specific system
+   * Energy is now per-system, not global
    */
-  const calculateEnergyState = () => {
-    const galaxy = galaxyData();
-    const ownedSystems = galaxy.systems.filter(s => s.owner === 'Player');
+  const calculateSystemEnergy = (system) => {
     const techBonuses = calculateTechBonuses(tech().researched);
-    const dockedShips = ships().filter(s => s.status === 'docked');
+    const dockedShipsAtSystem = ships().filter(s => s.status === 'docked' && s.systemId === system.id);
 
-    let capacity = 10; // Base capacity
+    let capacity = 10; // Base capacity per system
     let usage = 0;
 
-    ownedSystems.forEach(system => {
-      const buildings = system.buildings || {};
+    const buildings = system.buildings || {};
 
-      // Solar Plant provides capacity
-      const solarPlantLevel = buildings.solarPlant?.level || 0;
-      capacity += solarPlantLevel * BUILDINGS.solarPlant.energyCapacity;
+    // Solar Plant provides capacity
+    const solarPlantLevel = buildings.solarPlant?.level || 0;
+    capacity += solarPlantLevel * BUILDINGS.solarPlant.energyCapacity;
 
-      // Other buildings consume energy
-      const oreMineLevel = buildings.oreMine?.level || 0;
-      usage += oreMineLevel * BUILDINGS.oreMine.energyUsage;
+    // Other buildings consume energy
+    const oreMineLevel = buildings.oreMine?.level || 0;
+    usage += oreMineLevel * BUILDINGS.oreMine.energyUsage;
 
-      const tradeHubLevel = buildings.tradeHub?.level || 0;
-      usage += tradeHubLevel * BUILDINGS.tradeHub.energyUsage;
+    const tradeHubLevel = buildings.tradeHub?.level || 0;
+    usage += tradeHubLevel * BUILDINGS.tradeHub.energyUsage;
 
-      const shipyardLevel = buildings.shipyard?.level || 0;
-      usage += shipyardLevel * BUILDINGS.shipyard.energyUsage;
-    });
+    const shipyardLevel = buildings.shipyard?.level || 0;
+    usage += shipyardLevel * BUILDINGS.shipyard.energyUsage;
 
-    // Docked ships consume energy
-    dockedShips.forEach(() => {
+    // Docked ships at this system consume energy
+    dockedShipsAtSystem.forEach(() => {
       usage += COLONY_SHIP.energyUsage;
     });
 
@@ -234,43 +224,52 @@ export function createGameState() {
   };
 
   /**
-   * Calculate total production rates from all owned systems
+   * Calculate production rates for a specific system
+   * Returns { metals: number, credits: number } for that system
    */
-  const calculateProductionRates = () => {
+  const calculateSystemProductionRates = (system, systemEnergy) => {
+    const techBonuses = calculateTechBonuses(tech().researched);
+    const mult = RESOURCE_MULTIPLIERS[system.resources] || 1;
+    const buildings = system.buildings || {};
+
+    // Efficiency penalty if this system is over energy capacity
+    const efficiencyMult = systemEnergy.usage > systemEnergy.capacity ? 0.5 : 1.0;
+
+    // Metals production (stays in this system)
+    const oreMineLevel = buildings.oreMine?.level || 0;
+    let metalsRate = oreMineLevel * BUILDINGS.oreMine.production.metals * mult;
+    metalsRate *= techBonuses.metals * techBonuses.all * efficiencyMult;
+
+    // Credits production (goes to global pool)
+    const tradeHubLevel = buildings.tradeHub?.level || 0;
+    let systemCreditsRate = tradeHubLevel * BUILDINGS.tradeHub.production.credits * mult;
+    systemCreditsRate *= techBonuses.credits * techBonuses.all * efficiencyMult;
+
+    return { metals: metalsRate, credits: systemCreditsRate };
+  };
+
+  /**
+   * Calculate total credits rate from all systems plus trade income
+   */
+  const calculateTotalCreditsRate = () => {
     const galaxy = galaxyData();
     const ownedSystems = galaxy.systems.filter(s => s.owner === 'Player');
     const techBonuses = calculateTechBonuses(tech().researched);
-    const energy = calculateEnergyState();
 
-    // Efficiency penalty if over capacity
-    const efficiencyMult = energy.usage > energy.capacity ? 0.5 : 1.0;
-
-    let metalsRate = 0;
-    let creditsRate = 0;
+    let totalCreditsRate = 0;
 
     ownedSystems.forEach(system => {
-      const mult = RESOURCE_MULTIPLIERS[system.resources] || 1;
-      const buildings = system.buildings || {};
-
-      // Metals production
-      const oreMineLevel = buildings.oreMine?.level || 0;
-      metalsRate += oreMineLevel * BUILDINGS.oreMine.production.metals * mult;
-
-      // Credits production
-      const tradeHubLevel = buildings.tradeHub?.level || 0;
-      creditsRate += tradeHubLevel * BUILDINGS.tradeHub.production.credits * mult;
+      const energy = calculateSystemEnergy(system);
+      const rates = calculateSystemProductionRates(system, energy);
+      totalCreditsRate += rates.credits;
     });
-
-    // Apply tech bonuses and efficiency penalty
-    metalsRate *= techBonuses.metals * techBonuses.all * efficiencyMult;
-    creditsRate *= techBonuses.credits * techBonuses.all * efficiencyMult;
 
     // Add income from metal trade flows
     const flows = tradeFlows();
     const totalMetalTraded = flows.flows.reduce((sum, flow) => sum + flow.amount, 0);
-    creditsRate += totalMetalTraded * TRADE_INCOME_PER_METAL;
+    totalCreditsRate += totalMetalTraded * TRADE_INCOME_PER_METAL;
 
-    return { metals: metalsRate, credits: creditsRate };
+    return totalCreditsRate;
   };
 
   /**
@@ -408,17 +407,16 @@ export function createGameState() {
           tradeHub: { level: startingLevel },
           shipyard: { level: 0 }
         },
-        constructionQueue: []
+        constructionQueue: [],
+        // Initialize local resources for new colony
+        localResources: { metals: 50 }, // Starting metals bonus for new colonies
+        localEnergy: { capacity: 10, usage: 0 },
+        productionRates: { metals: 0, credits: 0 }
       };
     });
 
     setGalaxyData({ ...galaxy, systems: updatedSystems });
-
-    // Bonus resources on colonization (metals only, energy is capacity-based)
-    setResources(r => ({
-      metals: r.metals + 50,
-      credits: r.credits
-    }));
+    // No longer add global metals - colony gets local starting metals instead
   };
 
   /**
@@ -521,19 +519,53 @@ export function createGameState() {
     lastTickTime = now;
     const deltaSec = deltaMs / 1000;
 
-    // Update energy state (static capacity, not accumulated)
-    const energy = calculateEnergyState();
-    setEnergyState(energy);
+    // Calculate total credits rate and update global credits
+    const totalCreditsRate = calculateTotalCreditsRate();
+    setCreditsRate(totalCreditsRate);
+    setCredits(c => c + totalCreditsRate * deltaSec);
 
-    // Calculate and apply production
-    const rates = calculateProductionRates();
-    setProductionRates(rates);
+    // Update per-system resources (metals, energy) on each owned system
+    const galaxy = galaxyData();
+    let systemsModified = false;
 
-    // Only accumulate metals and credits (energy is static capacity)
-    setResources(r => ({
-      metals: r.metals + rates.metals * deltaSec,
-      credits: r.credits + rates.credits * deltaSec
-    }));
+    const updatedSystems = galaxy.systems.map(system => {
+      if (system.owner !== 'Player') return system;
+
+      // Calculate this system's energy state
+      const energy = calculateSystemEnergy(system);
+
+      // Calculate this system's production rates
+      const rates = calculateSystemProductionRates(system, energy);
+
+      // Update local metals
+      const currentMetals = system.localResources?.metals ?? 100; // Default starting metals
+      const newMetals = currentMetals + rates.metals * deltaSec;
+
+      // Check if anything changed
+      const prevEnergy = system.localEnergy;
+      const prevRates = system.productionRates;
+      const prevMetals = system.localResources?.metals;
+
+      if (prevEnergy?.capacity !== energy.capacity ||
+          prevEnergy?.usage !== energy.usage ||
+          prevRates?.metals !== rates.metals ||
+          prevRates?.credits !== rates.credits ||
+          prevMetals !== newMetals) {
+        systemsModified = true;
+        return {
+          ...system,
+          localResources: { metals: newMetals },
+          localEnergy: energy,
+          productionRates: rates
+        };
+      }
+
+      return system;
+    });
+
+    if (systemsModified) {
+      setGalaxyData({ ...galaxy, systems: updatedSystems });
+    }
 
     // Update construction queues
     updateConstructionQueues(deltaMs);
@@ -587,6 +619,8 @@ export function createGameState() {
 
   /**
    * Start construction of a building or ship
+   * Metals are deducted from the system's local resources
+   * Credits are deducted from the global pool
    */
   const startConstruction = (systemId, type, target) => {
     const galaxy = galaxyData();
@@ -616,19 +650,17 @@ export function createGameState() {
       return false;
     }
 
-    // Check resources (energy is now capacity-based, not spent)
-    const res = resources();
-    if (res.metals < cost.metals || res.credits < cost.credits) {
+    // Check resources: metals from system, credits from global
+    const systemMetals = system.localResources?.metals ?? 0;
+    const globalCredits = credits();
+    if (systemMetals < cost.metals || globalCredits < cost.credits) {
       return false;
     }
 
-    // Deduct resources (only metals and credits)
-    setResources(r => ({
-      metals: r.metals - cost.metals,
-      credits: r.credits - cost.credits
-    }));
+    // Deduct credits from global pool
+    setCredits(c => c - cost.credits);
 
-    // Add to construction queue
+    // Add to construction queue and deduct system metals
     const updatedSystems = galaxy.systems.map(s => {
       if (s.id !== systemId) return s;
 
@@ -637,6 +669,10 @@ export function createGameState() {
 
       return {
         ...s,
+        localResources: {
+          ...s.localResources,
+          metals: (s.localResources?.metals ?? 0) - cost.metals
+        },
         constructionQueue: [...queue, {
           type,
           target,
@@ -665,7 +701,7 @@ export function createGameState() {
     const result = buildFTLLogic(
       tetherId,
       galaxyData(),
-      resources(),
+      { credits: credits() }, // Pass credits in expected format
       builtFTLs()
     );
 
@@ -674,10 +710,7 @@ export function createGameState() {
     }
 
     // Deduct credits immediately
-    setResources(r => ({
-      ...r,
-      credits: result.newCredits
-    }));
+    setCredits(result.newCredits);
 
     // Calculate distance-based build time
     const cleanId = tetherId.replace(/^route-/, '');
@@ -714,14 +747,14 @@ export function createGameState() {
    * Scan a system (costs credits, takes 30s + 5s per hop from home)
    */
   const scanSystem = (systemId) => {
-    const res = resources();
+    const currentCredits = credits();
 
     // Can't scan if already scanning
     if (scanningSystem()) {
       return false;
     }
 
-    if (res.credits < SCAN_COST) {
+    if (currentCredits < SCAN_COST) {
       return false;
     }
 
@@ -736,10 +769,7 @@ export function createGameState() {
     const duration = calculateScanDuration(hops);
 
     // Deduct credits
-    setResources(r => ({
-      ...r,
-      credits: r.credits - SCAN_COST
-    }));
+    setCredits(c => c - SCAN_COST);
 
     // Start scanning
     setScanningSystem({
@@ -902,11 +932,11 @@ export function createGameState() {
     // Check if already researched
     if (currentTech.researched.includes(techId)) return false;
 
-    // Check credits
-    if (resources().credits < techDef.cost) return false;
+    // Check credits (global)
+    if (credits() < techDef.cost) return false;
 
     // Deduct credits
-    setResources(r => ({ ...r, credits: r.credits - techDef.cost }));
+    setCredits(c => c - techDef.cost);
 
     // Start research
     setTech(t => ({
@@ -1002,12 +1032,35 @@ export function createGameState() {
         console.log('✓ Migrations complete');
         console.log('📥 Restoring game state...');
 
-        setGalaxyData(migratedGalaxyData);
+        // Migrate old global resources to per-system if needed
+        const savedCredits = state.credits ?? state.resources?.credits ?? 200;
+        const hasOldGlobalMetals = state.resources?.metals !== undefined || state.resources?.ore !== undefined;
+        const oldGlobalMetals = state.resources?.metals ?? state.resources?.ore ?? 100;
+
+        // Migrate per-system resources
+        const systemsWithLocalResources = migratedGalaxyData.systems.map(system => {
+          if (system.owner !== 'Player') return system;
+
+          // If system already has localResources, use them; otherwise migrate from old format
+          if (system.localResources !== undefined) {
+            return system;
+          }
+
+          // Old saves: distribute old global metals proportionally or give default
+          const defaultMetals = hasOldGlobalMetals ? Math.min(100, oldGlobalMetals) : 100;
+          return {
+            ...system,
+            localResources: { metals: defaultMetals },
+            localEnergy: system.localEnergy || { capacity: 10, usage: 0 },
+            productionRates: system.productionRates || { metals: 0, credits: 0 }
+          };
+        });
+
+        setGalaxyData({ ...migratedGalaxyData, systems: systemsWithLocalResources });
         // Note: homeSystemId can be 0 (Sol has id 0), so we must handle null/undefined explicitly
         setHomeSystemId(state.homeSystemId ?? null);
-        // Handle both old and new resource format (migrate ore -> metals)
-        const savedResources = state.resources || { metals: 100, credits: 200 };
-        setResources({ metals: savedResources.metals || savedResources.ore || 100, credits: savedResources.credits || 200 });
+        // Set global credits only
+        setCredits(savedCredits);
         setShips(state.ships || []);
         setBuiltFTLs(new Set(migratedBuiltFTLs));
         setTech(state.tech || { researched: [], current: null });
@@ -1021,7 +1074,7 @@ export function createGameState() {
         // Note: viewSystemId can be 0 (Sol has id 0), so we check with !== null && !== undefined
         const savedViewSystemId = state.viewSystemId;
         const hasValidViewSystem = savedViewSystemId !== null && savedViewSystemId !== undefined &&
-          migratedGalaxyData.systems.some(s => s.id === savedViewSystemId);
+          systemsWithLocalResources.some(s => s.id === savedViewSystemId);
 
         const shouldRestoreSystemView = state.viewState === 'system' && hasValidViewSystem;
         const restoredViewState = shouldRestoreSystemView ? 'system' : 'galaxy';
@@ -1036,12 +1089,12 @@ export function createGameState() {
         }
 
         console.log('✓ Game state restored successfully');
-        console.log(`   Resources: ${savedResources.metals || savedResources.ore} metals, ${savedResources.credits} credits`);
+        console.log(`   Credits: ${savedCredits}`);
         console.log(`   Ships: ${state.ships?.length || 0}`);
         console.log(`   Built FTLs: ${migratedBuiltFTLs.length}`);
         console.log(`   Tech researched: ${state.tech?.researched?.length || 0}`);
 
-        // Energy state will be recalculated from buildings
+        // Energy and production will be recalculated from buildings per system
         startGameLoop();
         return true;
       }
@@ -1105,7 +1158,8 @@ export function createGameState() {
       const state = {
         galaxyData: galaxy,
         homeSystemId: home,
-        resources: resources(),
+        credits: credits(), // Global credits only
+        // Note: metals and energy are now stored per-system in galaxyData.systems[].localResources
         ships: ships(),
         builtFTLs: [...builtFTLs()],
         tech: tech(),
@@ -1154,7 +1208,10 @@ export function createGameState() {
       ...s,
       owner: s.owner === 'Enemy' ? 'Enemy' : 'Unclaimed',
       buildings: undefined,
-      constructionQueue: undefined
+      constructionQueue: undefined,
+      localResources: undefined,
+      localEnergy: undefined,
+      productionRates: undefined
     }));
 
     // Set all state synchronously so galaxy is ready to display
@@ -1162,8 +1219,7 @@ export function createGameState() {
     setSelectedSystemId(null);
     setSelectedTetherId(null);
     setHomeSystemId(null);
-    setResources({ metals: 100, credits: 200 });
-    setEnergyState({ capacity: 10, usage: 0 });
+    setCredits(200); // Global credits only
     setShips([]);
     setBuiltFTLs(new Set());
     setTech({ researched: [], current: null });
@@ -1183,10 +1239,10 @@ export function createGameState() {
       if (resetSystems.length > 0) {
         // Find the designated home system (Sol) or fall back to a random one
         const designatedHome = resetSystems.find(s => s.isHomeSystem);
-        
+
         // Find an unclaimed system with good resources (for fallback)
         const candidates = resetSystems.filter(s => s.resources !== 'Poor' && s.owner === 'Unclaimed');
-        
+
         const homeSystem = designatedHome || candidates[Math.floor(Math.random() * candidates.length)] || resetSystems.find(s => s.owner === 'Unclaimed');
 
         if (homeSystem) {
@@ -1195,7 +1251,7 @@ export function createGameState() {
 
           setHomeSystemId(homeSystem.id);
 
-          // Initialize home system as Player-owned
+          // Initialize home system as Player-owned with local resources
           const updatedSystems = resetSystems.map(s => {
             if (s.id !== homeSystem.id) return s;
             return {
@@ -1207,7 +1263,10 @@ export function createGameState() {
                 tradeHub: { level: 0 },
                 shipyard: { level: 0 }
               },
-              constructionQueue: []
+              constructionQueue: [],
+              localResources: { metals: 100 }, // Starting metals for home system
+              localEnergy: { capacity: 10, usage: 0 },
+              productionRates: { metals: 0, credits: 0 }
             };
           });
 
@@ -1220,7 +1279,7 @@ export function createGameState() {
           const state = {
             galaxyData: { ...newGalaxy, systems: updatedSystems },
             homeSystemId: homeSystem.id,
-            resources: resources(),
+            credits: credits(),
             ships: ships(),
             builtFTLs: [...builtFTLs()],
             tech: tech(),
@@ -1276,11 +1335,23 @@ export function createGameState() {
     setHexBuildings,
     hexConstructionQueue,
 
+    // Global resources (credits only - metals and energy are per-system now)
+    credits,
+    setCredits,
+    creditsRate,
+
+    // Per-system resource helpers
+    getSystemResources: (systemId) => {
+      const system = galaxyData().systems.find(s => s.id === systemId);
+      if (!system || system.owner !== 'Player') return null;
+      return {
+        metals: system.localResources?.metals ?? 0,
+        energy: system.localEnergy ?? { capacity: 10, usage: 0 },
+        productionRates: system.productionRates ?? { metals: 0, credits: 0 }
+      };
+    },
+
     // Real-time state
-    resources,
-    setResources,
-    productionRates,
-    energyState, // Static energy capacity and usage
     ships,
     setShips,
     tech,

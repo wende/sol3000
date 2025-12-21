@@ -43,7 +43,7 @@ export const CommandBar = (props) => {
     const currentTech = props.gameState.tech();
     if (currentTech.current) return false;
     if (currentTech.researched.includes(tech.id)) return false;
-    if (props.gameState.resources().credits < tech.cost) return false;
+    if (props.gameState.credits() < tech.cost) return false;
     return hasPrerequisites(tech);
   };
 
