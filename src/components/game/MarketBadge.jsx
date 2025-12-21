@@ -18,8 +18,12 @@ export const MarketBadge = (props) => {
   // Format satisfaction percentage for display
   const satisfactionText = () => {
     const sat = props.satisfaction;
-    if (!sat || sat.ratio === 0) return null;
-    const pct = Math.round(sat.ratio * 100);
+    if (!sat) return null;
+
+    const ratio = isSupply() ? sat.supplyRatio : sat.demandRatio;
+    if (!ratio || ratio === 0) return null;
+
+    const pct = Math.round(ratio * 100);
     return `${pct}%`;
   };
 

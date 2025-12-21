@@ -39,8 +39,19 @@ export const StarSystem = (props) => {
   // Supply comes from oreMine buildings for Player-owned systems
   const oreMineLevel = () => props.system.buildings?.oreMine?.level || 0;
   const metalsSupply = () => isOwned() ? oreMineLevel() * BUILDINGS.oreMine.supplyPerLevel : 0;
+  const metalsDemand = () => metals()?.demand || 0;
+  
+  // Calculate net flow accounting for local consumption
+  const localConsumption = () => Math.min(metalsSupply(), metalsDemand());
+  const surplus = () => metalsSupply() - localConsumption();
+  const unmetDemand = () => metalsDemand() - localConsumption();
+  
+  const hasSurplus = () => surplus() > 0;
+  const hasUnmetDemand = () => unmetDemand() > 0;
+  
+  // Keep original helpers for tooltip if needed, or update tooltip logic
   const hasMetalsSupply = () => metalsSupply() > 0;
-  const hasMetalsDemand = () => (metals()?.demand || 0) > 0;
+  const hasMetalsDemand = () => metalsDemand() > 0;
 
   // Simple LOD class based on zoom level (only applies when zoomed out)
   // Force low LOD during exit animation to prevent flicker from heavy star rendering
@@ -104,7 +115,7 @@ export const StarSystem = (props) => {
       <title>
         {props.system.name}
         {hasMetalsSupply() ? `\nMetals Supply: ${metalsSupply()}` : ''}
-        {hasMetalsDemand() ? `\nMetals Demand: ${metals().demand}` : ''}
+        {hasMetalsDemand() ? `\nMetals Demand: ${metalsDemand()}` : ''}
       </title>
 
       {/* Invisible larger hit area for easier clicking */}
@@ -185,9 +196,9 @@ export const StarSystem = (props) => {
       </Show>
 
       {/* Market Marker - Only show when zoomed in */}
-      <Show when={props.zoomLevel >= 0.4 && (hasMetalsSupply() || hasMetalsDemand())}>
+      <Show when={props.zoomLevel >= 0.4 && (hasSurplus() || hasUnmetDemand())}>
         <MarketBadge
-          type={hasMetalsSupply() ? 'supply' : 'demand'}
+          type={hasSurplus() ? 'supply' : 'demand'}
           y={props.system.size + 10}
           satisfaction={props.satisfaction}
           isTransitioning={props.isTransitioning}

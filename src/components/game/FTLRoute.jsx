@@ -86,7 +86,7 @@ export const FTLRoute = (props) => {
   const dashPattern = createMemo(() => {
     // Look up satisfaction reactively from tradeFlows
     const demandSatisfaction = props.tradeFlows?.systemSatisfaction?.get(props.demandSystemId);
-    const ratio = demandSatisfaction?.ratio || 0;
+    const ratio = demandSatisfaction?.demandRatio || 0;
 
     if (ratio <= 0) return '1, 14'; // Default when no flow
 
