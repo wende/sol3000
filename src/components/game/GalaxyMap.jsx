@@ -92,7 +92,7 @@ export const GalaxyMap = (props) => {
   });
 
   // Function to center and zoom on a system
-  const centerOnSystem = (sys, duration = 2000, targetScale = SYSTEM_VIEW_SCALE) => {
+  const centerOnSystem = (sys, duration = 1000, targetScale = SYSTEM_VIEW_SCALE) => {
     const svg = getSvgSelection();
     const zoom = getZoomBehavior();
     if (!svg || !zoom) return;
@@ -245,8 +245,8 @@ export const GalaxyMap = (props) => {
 
       const targetSystem = lastFocusedSystem || props.data.systems.find(s => s.id === props.viewSystemId);
       const transition = targetSystem
-        ? centerOnSystem(targetSystem, 1500, RETURN_VIEW_SCALE)
-        : resetToFullGalaxy(RETURN_VIEW_SCALE, 1500);
+        ? centerOnSystem(targetSystem, 750, RETURN_VIEW_SCALE)
+        : resetToFullGalaxy(RETURN_VIEW_SCALE, 750);
 
       if (transition) {
         transition
@@ -287,11 +287,11 @@ export const GalaxyMap = (props) => {
     if (props.onSystemDoubleSelect) {
       setTimeout(() => {
         props.onSystemDoubleSelect(sys.id);
-      }, 2000);
+      }, 1000);
 
       setTimeout(() => {
         setTransitioningId(null);
-      }, 3000);
+      }, 1500);
     }
   };
 

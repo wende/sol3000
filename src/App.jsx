@@ -160,7 +160,7 @@ export default function App() {
       {/* 2. Main View: Galaxy Map AND System View */}
       <div class="absolute inset-0 overflow-hidden">
         {/* Galaxy Map - Always visible, pushed to back when system view is active */}
-        <div class={`absolute inset-0 transition-opacity duration-1000 ${gameState.viewState() === 'system' ? 'opacity-0 pointer-events-none' : 'opacity-100 z-10'}`}>
+        <div class={`absolute inset-0 transition-opacity duration-500 ${gameState.viewState() === 'system' ? 'opacity-0 pointer-events-none' : 'opacity-100 z-10'}`}>
           <GalaxyMap
             data={gameState.galaxyData()}
             onSystemSelect={handleSystemSelect}
@@ -191,7 +191,7 @@ export default function App() {
 
         {/* System View - Overlay with fade in */}
         {/* Keep visible during planet view to prevent galaxy flash-through */}
-        <div class={`absolute inset-0 z-20 transition-opacity duration-1000 ${
+        <div class={`absolute inset-0 z-20 transition-opacity duration-500 ${
           gameState.viewState() === 'system' ? 'opacity-100 pointer-events-auto' :
           gameState.viewState() === 'planet' ? 'opacity-100 pointer-events-none' :
           'opacity-0 pointer-events-none'
@@ -206,7 +206,7 @@ export default function App() {
         </div>
 
         {/* Planet View (Hex Grid) - Overlay */}
-        <div class={`absolute inset-0 z-30 transition-opacity duration-1000 ${gameState.viewState() === 'planet' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div class={`absolute inset-0 z-30 transition-opacity duration-500 ${gameState.viewState() === 'planet' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
           <Show when={gameState.viewState() === 'planet'}>
             <div class="w-full h-full relative bg-black">
               {/* Back Button */}
