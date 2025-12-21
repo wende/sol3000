@@ -6,7 +6,7 @@ export const BUILDINGS = {
     id: 'oreMine',
     name: 'Metals Extractor',
     description: 'Extracts raw metals from the planet.',
-    baseCost: { metals: 50, credits: 0 },
+    baseCost: { credits: 50 },
     costFactor: 1.15,
     buildTimeFactor: 1.5,
     production: { metals: 0.5, credits: 0 },
@@ -17,7 +17,7 @@ export const BUILDINGS = {
     id: 'solarPlant',
     name: 'Solar Plant',
     description: 'Provides energy capacity from stellar radiation.',
-    baseCost: { metals: 30, credits: 0 },
+    baseCost: { credits: 30 },
     costFactor: 1.15,
     buildTimeFactor: 1.5,
     production: { metals: 0, credits: 0 },
@@ -29,7 +29,7 @@ export const BUILDINGS = {
     id: 'tradeHub',
     name: 'Trade Hub',
     description: 'Facilitates commerce and generates credits.',
-    baseCost: { metals: 80, credits: 0 },
+    baseCost: { credits: 80 },
     costFactor: 1.15,
     buildTimeFactor: 1.5,
     production: { metals: 0, credits: 0.2 },
@@ -40,7 +40,7 @@ export const BUILDINGS = {
     id: 'shipyard',
     name: 'Shipyard',
     description: 'Constructs spacecraft for colonization.',
-    baseCost: { metals: 200, credits: 100 },
+    baseCost: { credits: 300 },
     costFactor: 1.15,
     buildTimeFactor: 1.5,
     production: { metals: 0, credits: 0 },
@@ -53,7 +53,7 @@ export const BUILDINGS = {
  * Colony ship definition
  */
 export const COLONY_SHIP = {
-  cost: { metals: 500, credits: 300 },
+  cost: { credits: 800 },
   energyUsage: 10,
   buildTime: 18000,
   travelTimePerHop: 6000
@@ -66,7 +66,6 @@ export function getBuildingCost(buildingId, level) {
   const building = BUILDINGS[buildingId];
   const factor = Math.pow(building.costFactor, level);
   return {
-    metals: Math.floor(building.baseCost.metals * factor),
     credits: Math.floor(building.baseCost.credits * factor)
   };
 }

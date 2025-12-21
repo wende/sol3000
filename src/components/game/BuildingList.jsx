@@ -46,9 +46,9 @@ export function BuildingList(props) {
   const timer = setInterval(() => setNow(Date.now()), 100);
   onCleanup(() => clearInterval(timer));
 
-  // Check if we can afford a cost (metals from system, credits from global)
+  // Check if we can afford a cost (credits only)
   const canAfford = (cost) => {
-    return systemMetals() >= cost.metals && globalCredits() >= cost.credits;
+    return globalCredits() >= cost.credits;
   };
 
   // Generic helper for queue state across buildings and ships
@@ -186,16 +186,9 @@ export function BuildingList(props) {
                     <div class="building-production text-gray-300">Uses {energyUsage()}</div>
                   </Show>
                   <div class="building-cost">
-                    <Show when={cost().metals > 0}>
-                      <span class={systemMetals() >= cost().metals ? 'cost-ok' : 'cost-err'}>
-                        {cost().metals} Metals
-                      </span>
-                    </Show>
-                    <Show when={cost().credits > 0}>
-                      <span class={globalCredits() >= cost().credits ? 'cost-ok' : 'cost-err'}>
-                        {cost().credits} Cr
-                      </span>
-                    </Show>
+                    <span class={globalCredits() >= cost().credits ? 'cost-ok' : 'cost-err'}>
+                      {cost().credits} Cr
+                    </span>
                   </div>
                 </div>
                 <div class="building-action">
@@ -251,9 +244,6 @@ export function BuildingList(props) {
                 <span class="building-name">Colony Ship</span>
               </div>
               <div class="building-cost">
-                <span class={systemMetals() >= COLONY_SHIP.cost.metals ? 'cost-ok' : 'cost-err'}>
-                  {COLONY_SHIP.cost.metals} Metals
-                </span>
                 <span class={globalCredits() >= COLONY_SHIP.cost.credits ? 'cost-ok' : 'cost-err'}>
                   {COLONY_SHIP.cost.credits} Cr
                 </span>

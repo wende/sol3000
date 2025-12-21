@@ -619,7 +619,6 @@ export function createGameState() {
 
   /**
    * Start construction of a building or ship
-   * Metals are deducted from the system's local resources
    * Credits are deducted from the global pool
    */
   const startConstruction = (systemId, type, target) => {
@@ -650,17 +649,16 @@ export function createGameState() {
       return false;
     }
 
-    // Check resources: metals from system, credits from global
-    const systemMetals = system.localResources?.metals ?? 0;
+    // Check credits
     const globalCredits = credits();
-    if (systemMetals < cost.metals || globalCredits < cost.credits) {
+    if (globalCredits < cost.credits) {
       return false;
     }
 
     // Deduct credits from global pool
     setCredits(c => c - cost.credits);
 
-    // Add to construction queue and deduct system metals
+    // Add to construction queue
     const updatedSystems = galaxy.systems.map(s => {
       if (s.id !== systemId) return s;
 
@@ -669,10 +667,6 @@ export function createGameState() {
 
       return {
         ...s,
-        localResources: {
-          ...s.localResources,
-          metals: (s.localResources?.metals ?? 0) - cost.metals
-        },
         constructionQueue: [...queue, {
           type,
           target,

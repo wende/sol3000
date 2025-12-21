@@ -266,13 +266,13 @@ describe('gameState', () => {
   describe('Building costs', () => {
     it('should calculate building cost correctly', () => {
       const level0Cost = getBuildingCost('oreMine', 0);
-      expect(level0Cost.metals).toBe(50);
+      expect(level0Cost.credits).toBe(50);
 
       const level1Cost = getBuildingCost('oreMine', 1);
-      expect(level1Cost.metals).toBe(Math.floor(50 * 1.15));
+      expect(level1Cost.credits).toBe(Math.floor(50 * 1.15));
 
       const level2Cost = getBuildingCost('oreMine', 2);
-      expect(level2Cost.metals).toBe(Math.floor(50 * 1.15 * 1.15));
+      expect(level2Cost.credits).toBe(Math.floor(50 * 1.15 * 1.15));
     });
   });
 
@@ -579,13 +579,13 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        setTestResources(gameState, homeId, { metals: 1, credits: 1 }); // Very low resources
+        setTestResources(gameState, homeId, { metals: 1, credits: 1 }); // Very low credits
 
-        // Try to build expensive building
+        // Try to build expensive building (shipyard costs 300 credits)
         const result = gameState.startConstruction(homeId, 'building', 'shipyard');
 
         expect(result).toBe(false); // Should fail
-        expect(gameState.getSystemResources(homeId).metals).toBe(1); // Resources unchanged
+        expect(gameState.credits()).toBe(1); // Credits unchanged
 
         gameState.stopGameLoop();
         dispose();
@@ -693,21 +693,21 @@ describe('gameState', () => {
       const cost1 = getBuildingCost('oreMine', 1);
       const cost2 = getBuildingCost('oreMine', 2);
 
-      expect(cost1.metals).toBeGreaterThan(cost0.metals);
-      expect(cost2.metals).toBeGreaterThan(cost1.metals);
+      expect(cost1.credits).toBeGreaterThan(cost0.credits);
+      expect(cost2.credits).toBeGreaterThan(cost1.credits);
 
       // Verify exponential scaling (factor = 1.15)
-      expect(cost1.metals).toBe(Math.floor(cost0.metals * 1.15));
-      expect(cost2.metals).toBe(Math.floor(cost0.metals * Math.pow(1.15, 2)));
+      expect(cost1.credits).toBe(Math.floor(cost0.credits * 1.15));
+      expect(cost2.credits).toBe(Math.floor(cost0.credits * Math.pow(1.15, 2)));
     });
 
     it('should handle high building levels without overflow', () => {
       // Test very high levels to ensure no integer overflow
       const costHigh = getBuildingCost('oreMine', 50);
 
-      expect(costHigh.metals).toBeGreaterThan(0);
-      expect(costHigh.metals).toBeLessThan(1e10); // Sanity check
-      expect(Number.isFinite(costHigh.metals)).toBe(true);
+      expect(costHigh.credits).toBeGreaterThan(0);
+      expect(costHigh.credits).toBeLessThan(1e10); // Sanity check
+      expect(Number.isFinite(costHigh.credits)).toBe(true);
     });
   });
 
