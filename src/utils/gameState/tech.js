@@ -5,7 +5,7 @@ export const TECH_TREE = {
   efficientMining: {
     id: 'efficientMining',
     name: 'Efficient Mining',
-    description: '+25% Ore production',
+    description: '+25% Metals production',
     cost: 200,
     researchTime: 12000,
     requires: [],
@@ -60,7 +60,7 @@ export const TECH_TREE = {
 
 export function calculateTechBonuses(researched) {
   const bonuses = {
-    ore: 1,
+    metals: 1,
     energy: 1,
     credits: 1,
     travel: 1,
@@ -72,7 +72,7 @@ export function calculateTechBonuses(researched) {
     const tech = TECH_TREE[techId];
     if (!tech) return;
 
-    if (tech.effect.oreBonus) bonuses.ore += tech.effect.oreBonus;
+    if (tech.effect.oreBonus) bonuses.metals += tech.effect.oreBonus;
     if (tech.effect.energyBonus) bonuses.energy += tech.effect.energyBonus;
     if (tech.effect.creditsBonus) bonuses.credits += tech.effect.creditsBonus;
     if (tech.effect.travelBonus) bonuses.travel -= tech.effect.travelBonus;

@@ -2,7 +2,7 @@ import { mergeProps } from 'solid-js';
 import './ResourceIcon.css';
 
 /**
- * @typedef {'metals' | 'volatiles' | 'nobleGases' | 'rareEarths' | 'isotopes' | 'exotics' | 'ore' | 'credits' | 'energy'} ResourceType
+ * @typedef {'metals' | 'volatiles' | 'nobleGases' | 'rareEarths' | 'isotopes' | 'exotics' | 'credits' | 'energy'} ResourceType
  */
 
 /**
@@ -35,15 +35,6 @@ export const ResourceIcon = (props) => {
     
     // 2. Metals: Single Ingot with Glow
     metals: () => (
-      <div class="construct-grid met-new">
-        <div class="ingot-wrapper">
-          <div class="ingot-shape"></div>
-        </div>
-      </div>
-    ),
-    
-    // Map 'ore' to the new metals icon
-    ore: () => (
       <div class="construct-grid met-new">
         <div class="ingot-wrapper">
           <div class="ingot-shape"></div>

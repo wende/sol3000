@@ -7,8 +7,8 @@ import { EnergyStat } from './EnergyStat';
 
 /**
  * @typedef {Object} StatsPanelProps
- * @property {{ ore: number, credits: number }} resources - Current resources
- * @property {{ ore: number, credits: number }} productionRates - Production per second
+ * @property {{ metals: number, credits: number }} resources - Current resources
+ * @property {{ metals: number, credits: number }} productionRates - Production per second
  * @property {{ capacity: number, usage: number }} energyState - Energy capacity and usage
  * @property {number} systemsOwned - Number of systems owned by player
  * @property {number} maxSystems - Total number of systems
@@ -38,10 +38,10 @@ export const StatsPanel = (props) => {
       {/* Resources Section */}
       <div class="space-y-6 mb-6">
         <ResourceStat
-          label="ORE"
-          value={props.resources.ore}
-          rate={props.productionRates.ore}
-          id="stats-ore-value"
+          label="METALS"
+          value={props.resources.metals}
+          rate={props.productionRates.metals}
+          id="stats-metals-value"
         />
 
         <EnergyStat

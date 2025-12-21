@@ -41,7 +41,7 @@ describe('Sidebar Sub-components', () => {
       gameState: {
         ships: vi.fn(() => []),
         scanningSystem: vi.fn(() => null),
-        resources: vi.fn(() => ({ ore: 1000, credits: 500 })),
+        resources: vi.fn(() => ({ metals: 1000, credits: 500 })),
         galaxyData: vi.fn(() => ({ systems: [] })),
         homeSystemId: vi.fn(() => 1),
         findPath: vi.fn(() => [2]),
@@ -70,7 +70,7 @@ describe('Sidebar Sub-components', () => {
       },
       gameState: {
         builtFTLs: vi.fn(() => new Set()),
-        resources: vi.fn(() => ({ ore: 1000, credits: 500 })),
+        resources: vi.fn(() => ({ metals: 1000, credits: 500 })),
         buildFTL: vi.fn()
       }
     };

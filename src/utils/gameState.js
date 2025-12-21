@@ -39,13 +39,13 @@ export function createGameState() {
 
   // Real-time resource signals (energy is now capacity-based, not accumulated)
   const [resources, setResources] = createSignal({
-    ore: 100,
+    metals: 100,
     credits: 200
   });
 
   // Production rates (calculated each tick, exposed for UI)
   const [productionRates, setProductionRates] = createSignal({
-    ore: 0,
+    metals: 0,
     credits: 0
   });
 
@@ -245,16 +245,16 @@ export function createGameState() {
     // Efficiency penalty if over capacity
     const efficiencyMult = energy.usage > energy.capacity ? 0.5 : 1.0;
 
-    let oreRate = 0;
+    let metalsRate = 0;
     let creditsRate = 0;
 
     ownedSystems.forEach(system => {
       const mult = RESOURCE_MULTIPLIERS[system.resources] || 1;
       const buildings = system.buildings || {};
 
-      // Ore production
+      // Metals production
       const oreMineLevel = buildings.oreMine?.level || 0;
-      oreRate += oreMineLevel * BUILDINGS.oreMine.production.ore * mult;
+      metalsRate += oreMineLevel * BUILDINGS.oreMine.production.metals * mult;
 
       // Credits production
       const tradeHubLevel = buildings.tradeHub?.level || 0;
@@ -262,7 +262,7 @@ export function createGameState() {
     });
 
     // Apply tech bonuses and efficiency penalty
-    oreRate *= techBonuses.ore * techBonuses.all * efficiencyMult;
+    metalsRate *= techBonuses.metals * techBonuses.all * efficiencyMult;
     creditsRate *= techBonuses.credits * techBonuses.all * efficiencyMult;
 
     // Add income from metal trade flows
@@ -270,7 +270,7 @@ export function createGameState() {
     const totalMetalTraded = flows.flows.reduce((sum, flow) => sum + flow.amount, 0);
     creditsRate += totalMetalTraded * TRADE_INCOME_PER_METAL;
 
-    return { ore: oreRate, credits: creditsRate };
+    return { metals: metalsRate, credits: creditsRate };
   };
 
   /**
@@ -414,9 +414,9 @@ export function createGameState() {
 
     setGalaxyData({ ...galaxy, systems: updatedSystems });
 
-    // Bonus resources on colonization (ore only, energy is capacity-based)
+    // Bonus resources on colonization (metals only, energy is capacity-based)
     setResources(r => ({
-      ore: r.ore + 50,
+      metals: r.metals + 50,
       credits: r.credits
     }));
   };
@@ -529,9 +529,9 @@ export function createGameState() {
     const rates = calculateProductionRates();
     setProductionRates(rates);
 
-    // Only accumulate ore and credits (energy is static capacity)
+    // Only accumulate metals and credits (energy is static capacity)
     setResources(r => ({
-      ore: r.ore + rates.ore * deltaSec,
+      metals: r.metals + rates.metals * deltaSec,
       credits: r.credits + rates.credits * deltaSec
     }));
 
@@ -618,13 +618,13 @@ export function createGameState() {
 
     // Check resources (energy is now capacity-based, not spent)
     const res = resources();
-    if (res.ore < cost.ore || res.credits < cost.credits) {
+    if (res.metals < cost.metals || res.credits < cost.credits) {
       return false;
     }
 
-    // Deduct resources (only ore and credits)
+    // Deduct resources (only metals and credits)
     setResources(r => ({
-      ore: r.ore - cost.ore,
+      metals: r.metals - cost.metals,
       credits: r.credits - cost.credits
     }));
 
@@ -1005,9 +1005,9 @@ export function createGameState() {
         setGalaxyData(migratedGalaxyData);
         // Note: homeSystemId can be 0 (Sol has id 0), so we must handle null/undefined explicitly
         setHomeSystemId(state.homeSystemId ?? null);
-        // Handle both old and new resource format
-        const savedResources = state.resources || { ore: 100, credits: 200 };
-        setResources({ ore: savedResources.ore || 100, credits: savedResources.credits || 200 });
+        // Handle both old and new resource format (migrate ore -> metals)
+        const savedResources = state.resources || { metals: 100, credits: 200 };
+        setResources({ metals: savedResources.metals || savedResources.ore || 100, credits: savedResources.credits || 200 });
         setShips(state.ships || []);
         setBuiltFTLs(new Set(migratedBuiltFTLs));
         setTech(state.tech || { researched: [], current: null });
@@ -1036,7 +1036,7 @@ export function createGameState() {
         }
 
         console.log('✓ Game state restored successfully');
-        console.log(`   Resources: ${savedResources.ore} ore, ${savedResources.credits} credits`);
+        console.log(`   Resources: ${savedResources.metals || savedResources.ore} metals, ${savedResources.credits} credits`);
         console.log(`   Ships: ${state.ships?.length || 0}`);
         console.log(`   Built FTLs: ${migratedBuiltFTLs.length}`);
         console.log(`   Tech researched: ${state.tech?.researched?.length || 0}`);
@@ -1162,7 +1162,7 @@ export function createGameState() {
     setSelectedSystemId(null);
     setSelectedTetherId(null);
     setHomeSystemId(null);
-    setResources({ ore: 100, credits: 200 });
+    setResources({ metals: 100, credits: 200 });
     setEnergyState({ capacity: 10, usage: 0 });
     setShips([]);
     setBuiltFTLs(new Set());

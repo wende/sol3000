@@ -1,5 +1,5 @@
 import { Show, For, createSignal, onCleanup } from 'solid-js';
-import { Pickaxe, Zap, Coins, Rocket } from 'lucide-solid';
+import { Rocket } from 'lucide-solid';
 import { StatBlock } from '../common/StatBlock';
 import { BUILDINGS, COLONY_SHIP, getBuildingCost } from '../../utils/gameState';
 import { formatTime } from '../../utils/format';
@@ -7,6 +7,7 @@ import { ProgressBar } from '../common/ProgressBar';
 import { GlassCard } from '../common/GlassCard';
 import { MiniPanel } from '../common/MiniPanel';
 import { BuildingConstruct } from '../common/BuildingConstruct';
+import { ResourceIcon } from '../common/ResourceIcon';
 import './BuildingList.css';
 
 /**
@@ -45,7 +46,7 @@ export function BuildingList(props) {
   // Check if we can afford a cost (energy is capacity-based, not spent)
   const canAfford = (cost) => {
     const res = resources();
-    return res.ore >= cost.ore && res.credits >= cost.credits;
+    return res.metals >= cost.metals && res.credits >= cost.credits;
   };
 
   // Generic helper for queue state across buildings and ships
@@ -110,19 +111,19 @@ export function BuildingList(props) {
       {/* Resource Header */}
       <MiniPanel class="resource-bar">
         <div class="resource-item">
-          <Pickaxe size={12} class="text-white" />
-          <span class="res-label">ORE</span>
-          <span id="res-ore-value" class="res-value">{Math.floor(resources().ore)}</span>
+          <ResourceIcon type="metals" size={16} />
+          <span class="res-label">METALS</span>
+          <span id="res-metals-value" class="res-value">{Math.floor(resources().metals)}</span>
         </div>
         <div class="resource-item">
-          <Zap size={12} class="text-white" />
+          <ResourceIcon type="energy" size={16} />
           <span class="res-label">ENERGY</span>
           <span id="res-energy-value" class={`res-value ${
             energyState().usage > energyState().capacity ? 'text-red-400' : ''
           }`}>{energyState().capacity - energyState().usage}/{energyState().capacity}</span>
         </div>
         <div class="resource-item">
-          <Coins size={12} class="text-white" />
+          <ResourceIcon type="credits" size={16} />
           <span class="res-label">CREDITS</span>
           <span id="res-credits-value" class="res-value">{Math.floor(resources().credits)}</span>
         </div>
@@ -143,7 +144,7 @@ export function BuildingList(props) {
 
             // Calculate production/effect for this building (per level)
             const production = () => {
-              if (building.production.ore > 0) return `+${building.production.ore.toFixed(1)} ORE/s`;
+              if (building.production.metals > 0) return `+${building.production.metals.toFixed(1)} METALS/s`;
               if (building.production.credits > 0) return `+${building.production.credits.toFixed(1)} CREDITS/s`;
               if (building.energyCapacity) return `+${building.energyCapacity} CAPACITY`;
               if (building.id === 'shipyard') return `-10% SHIP BUILD TIME`;
@@ -183,9 +184,9 @@ export function BuildingList(props) {
                     <div class="building-production text-gray-300">Uses {energyUsage()}</div>
                   </Show>
                   <div class="building-cost">
-                    <Show when={cost().ore > 0}>
-                      <span class={resources().ore >= cost().ore ? 'cost-ok' : 'cost-err'}>
-                        {cost().ore} Ore
+                    <Show when={cost().metals > 0}>
+                      <span class={resources().metals >= cost().metals ? 'cost-ok' : 'cost-err'}>
+                        {cost().metals} Metals
                       </span>
                     </Show>
                     <Show when={cost().credits > 0}>
@@ -248,8 +249,8 @@ export function BuildingList(props) {
                 <span class="building-name">Colony Ship</span>
               </div>
               <div class="building-cost">
-                <span class={resources().ore >= COLONY_SHIP.cost.ore ? 'cost-ok' : 'cost-err'}>
-                  {COLONY_SHIP.cost.ore} Ore
+                <span class={resources().metals >= COLONY_SHIP.cost.metals ? 'cost-ok' : 'cost-err'}>
+                  {COLONY_SHIP.cost.metals} Metals
                 </span>
                 <span class={resources().credits >= COLONY_SHIP.cost.credits ? 'cost-ok' : 'cost-err'}>
                   {COLONY_SHIP.cost.credits} Cr

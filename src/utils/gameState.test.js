@@ -40,7 +40,7 @@ describe('gameState', () => {
           routes: []
         },
         homeSystemId: null, // No home system - corruption!
-        resources: { ore: 100, energy: 50, credits: 200 }
+        resources: { metals: 100, credits: 200 }
       };
 
       localStorageMock.getItem.mockReturnValue(JSON.stringify(corruptedState));
@@ -67,7 +67,7 @@ describe('gameState', () => {
           routes: []
         },
         homeSystemId: 999, // Points to non-existent system - corruption!
-        resources: { ore: 100, energy: 50, credits: 200 }
+        resources: { metals: 100, credits: 200 }
       };
 
       localStorageMock.getItem.mockReturnValue(JSON.stringify(corruptedState));
@@ -94,7 +94,7 @@ describe('gameState', () => {
           routes: []
         },
         homeSystemId: 1, // Valid home system
-        resources: { ore: 150, energy: 75, credits: 300 }
+        resources: { metals: 150, credits: 300 }
       };
 
       localStorageMock.getItem.mockReturnValue(JSON.stringify(validState));
@@ -124,7 +124,7 @@ describe('gameState', () => {
           routes: []
         },
         homeSystemId: null, // No home yet - valid during initial setup
-        resources: { ore: 100, energy: 50, credits: 200 }
+        resources: { metals: 100, credits: 200 }
       };
 
       localStorageMock.getItem.mockReturnValue(JSON.stringify(validState));
@@ -152,7 +152,7 @@ describe('gameState', () => {
           routes: []
         },
         homeSystemId: 0, // Sol has id 0 - must be treated as valid, not falsy!
-        resources: { ore: 150, credits: 300 }
+        resources: { metals: 150, credits: 300 }
       };
 
       localStorageMock.getItem.mockReturnValue(JSON.stringify(validState));
@@ -255,13 +255,13 @@ describe('gameState', () => {
   describe('Building costs', () => {
     it('should calculate building cost correctly', () => {
       const level0Cost = getBuildingCost('oreMine', 0);
-      expect(level0Cost.ore).toBe(50);
+      expect(level0Cost.metals).toBe(50);
 
       const level1Cost = getBuildingCost('oreMine', 1);
-      expect(level1Cost.ore).toBe(Math.floor(50 * 1.15));
+      expect(level1Cost.metals).toBe(Math.floor(50 * 1.15));
 
       const level2Cost = getBuildingCost('oreMine', 2);
-      expect(level2Cost.ore).toBe(Math.floor(50 * 1.15 * 1.15));
+      expect(level2Cost.metals).toBe(Math.floor(50 * 1.15 * 1.15));
     });
   });
 
@@ -274,7 +274,7 @@ describe('gameState', () => {
     });
 
     it('should have valid production values', () => {
-      expect(BUILDINGS.oreMine.production.ore).toBeGreaterThan(0);
+      expect(BUILDINGS.oreMine.production.metals).toBeGreaterThan(0);
       expect(BUILDINGS.solarPlant.energyCapacity).toBeGreaterThan(0); // Provides capacity, not production
       expect(BUILDINGS.tradeHub.production.credits).toBeGreaterThan(0);
     });
@@ -301,7 +301,7 @@ describe('gameState', () => {
         expect(homeId).not.toBeNull();
 
         // Give enough resources for multiple buildings
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
 
         // Queue two buildings
         const result1 = gameState.startConstruction(homeId, 'building', 'oreMine');
@@ -337,7 +337,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
 
         // Queue two buildings
         gameState.startConstruction(homeId, 'building', 'solarPlant'); // 2s build time
@@ -375,7 +375,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 2000, credits: 2000 });
+        gameState.setResources({ metals: 2000, credits: 2000 });
 
         // Queue three buildings
         gameState.startConstruction(homeId, 'building', 'oreMine');
@@ -478,8 +478,8 @@ describe('gameState', () => {
 
         const homeId = gameState.homeSystemId();
 
-        // Build ore mines to increase production dramatically
-        gameState.setResources({ ore: 950000000, credits: 950000000 }); // Very close to cap of 1e9
+        // Build metals extractors to increase production dramatically
+        gameState.setResources({ metals: 950000000, credits: 950000000 }); // Very close to cap of 1e9
 
         // Simulate continued gameplay to verify caps are enforced
         for (let i = 0; i < 1000; i++) {
@@ -488,11 +488,11 @@ describe('gameState', () => {
 
         const resources = gameState.resources();
         // Resources should never exceed 1 billion (1e9) even with production
-        expect(resources.ore).toBeLessThanOrEqual(1e9);
+        expect(resources.metals).toBeLessThanOrEqual(1e9);
         expect(resources.credits).toBeLessThanOrEqual(1e9);
         // Resources may fluctuate due to construction costs and production
         // Just verify they don't overflow
-        expect(Number.isFinite(resources.ore)).toBe(true);
+        expect(Number.isFinite(resources.metals)).toBe(true);
         expect(Number.isFinite(resources.credits)).toBe(true);
 
         gameState.stopGameLoop();
@@ -512,14 +512,14 @@ describe('gameState', () => {
 
         // Start with no buildings
         const initialResources = gameState.resources();
-        const initialOre = initialResources.ore;
+        const initialMetals = initialResources.metals;
 
         // Advance time
         vi.advanceTimersByTime(5000);
 
         const finalResources = gameState.resources();
-        // Ore should increase slightly from initial mine, but not change much without energy
-        expect(finalResources.ore).toBeGreaterThanOrEqual(initialOre);
+        // Metals should increase slightly from initial mine, but not change much without energy
+        expect(finalResources.metals).toBeGreaterThanOrEqual(initialMetals);
 
         gameState.stopGameLoop();
         dispose();
@@ -537,7 +537,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
 
         // Build a shipyard and ship
         gameState.startConstruction(homeId, 'building', 'shipyard');
@@ -567,13 +567,13 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 1, credits: 1 }); // Very low resources
+        gameState.setResources({ metals: 1, credits: 1 }); // Very low resources
 
         // Try to build expensive building
         const result = gameState.startConstruction(homeId, 'building', 'shipyard');
 
         expect(result).toBe(false); // Should fail
-        expect(gameState.resources().ore).toBe(1); // Resources unchanged
+        expect(gameState.resources().metals).toBe(1); // Resources unchanged
 
         gameState.stopGameLoop();
         dispose();
@@ -589,7 +589,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
 
         // Try to build colony ship without shipyard
         const result = gameState.startConstruction(homeId, 'ship', 'colonyShip');
@@ -611,7 +611,7 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
 
         // Try to research advanced tech without prerequisites
         const result = gameState.startResearch('warpDrives'); // Requires advancedReactors
@@ -631,7 +631,7 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
 
         // Research first tech
         const result1 = gameState.startResearch('efficientMining');
@@ -641,7 +641,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(15000);
 
         // Try to research again
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
         const result2 = gameState.startResearch('efficientMining');
         expect(result2).toBe(false); // Should fail - already researched
 
@@ -658,13 +658,13 @@ describe('gameState', () => {
 
         vi.advanceTimersByTime(1100);
 
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
 
         // Start first research
         gameState.startResearch('efficientMining');
 
         // Try to start another while first is ongoing
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
         const result = gameState.startResearch('tradeNetworks');
 
         expect(result).toBe(false); // Should fail - already researching
@@ -681,21 +681,21 @@ describe('gameState', () => {
       const cost1 = getBuildingCost('oreMine', 1);
       const cost2 = getBuildingCost('oreMine', 2);
 
-      expect(cost1.ore).toBeGreaterThan(cost0.ore);
-      expect(cost2.ore).toBeGreaterThan(cost1.ore);
+      expect(cost1.metals).toBeGreaterThan(cost0.metals);
+      expect(cost2.metals).toBeGreaterThan(cost1.metals);
 
       // Verify exponential scaling (factor = 1.15)
-      expect(cost1.ore).toBe(Math.floor(cost0.ore * 1.15));
-      expect(cost2.ore).toBe(Math.floor(cost0.ore * Math.pow(1.15, 2)));
+      expect(cost1.metals).toBe(Math.floor(cost0.metals * 1.15));
+      expect(cost2.metals).toBe(Math.floor(cost0.metals * Math.pow(1.15, 2)));
     });
 
     it('should handle high building levels without overflow', () => {
       // Test very high levels to ensure no integer overflow
       const costHigh = getBuildingCost('oreMine', 50);
 
-      expect(costHigh.ore).toBeGreaterThan(0);
-      expect(costHigh.ore).toBeLessThan(1e10); // Sanity check
-      expect(Number.isFinite(costHigh.ore)).toBe(true);
+      expect(costHigh.metals).toBeGreaterThan(0);
+      expect(costHigh.metals).toBeLessThan(1e10); // Sanity check
+      expect(Number.isFinite(costHigh.metals)).toBe(true);
     });
   });
 
@@ -709,7 +709,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 10000, credits: 10000 });
+        gameState.setResources({ metals: 10000, credits: 10000 });
 
         const galaxy = gameState.galaxyData();
         const targetSystem = galaxy.systems.find(s => s.id !== homeId && s.owner === 'Unclaimed');
@@ -735,7 +735,7 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 10000, credits: 10 }); // Not enough credits
+        gameState.setResources({ metals: 10000, credits: 10 }); // Not enough credits
 
         const galaxy = gameState.galaxyData();
         const targetSystem = galaxy.systems.find(s => s.id !== homeId && s.owner === 'Unclaimed');
@@ -780,9 +780,9 @@ describe('gameState', () => {
         vi.advanceTimersByTime(1100);
 
         const homeId = gameState.homeSystemId();
-        gameState.setResources({ ore: 50000, credits: 50000 });
+        gameState.setResources({ metals: 50000, credits: 50000 });
 
-        // Build 5 ore mines to increase energy usage
+        // Build 5 metals extractors to increase energy usage
         for (let i = 0; i < 5; i++) {
           gameState.startConstruction(homeId, 'building', 'oreMine');
         }
@@ -820,7 +820,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Build FTL - should start construction, not instant build
@@ -853,7 +853,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Start FTL construction
@@ -892,7 +892,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Start first FTL construction
@@ -927,7 +927,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Start FTL construction
@@ -965,7 +965,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Start first FTL construction
@@ -1005,7 +1005,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Start first FTL construction
@@ -1045,7 +1045,7 @@ describe('gameState', () => {
 
         gameState.setGalaxyData(galaxy);
         gameState.setHomeSystemId(1);
-        gameState.setResources({ ore: 1000, credits: 1000 });
+        gameState.setResources({ metals: 1000, credits: 1000 });
         gameState.startGameLoop();
 
         // Start FTL construction
@@ -1074,7 +1074,7 @@ describe('gameState', () => {
           ]
         },
         homeSystemId: 1,
-        resources: { ore: 980, credits: 980 },
+        resources: { metals: 980, credits: 980 },
         ships: { total: 0, deployed: 0 },
         builtFTLs: [],
         tech: { researched: [], currentResearch: null },
