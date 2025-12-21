@@ -120,11 +120,20 @@ export const SystemView = (props) => {
                         {(() => {
                           const isPlayerOwned = system().owner === 'Player';
                           const oreMineLevel = system().buildings?.oreMine?.level || 0;
-                          const supply = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
+                          const production = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
                           const demand = system().market?.metals?.demand || 0;
-                          if (supply > 0) return `SUP ${supply}`;
-                          if (demand > 0) return `DEM ${demand}`;
-                          return '—';
+
+                          // Local production satisfies local demand first
+                          const localConsumption = Math.min(production, demand);
+                          const surplus = production - localConsumption;
+                          const unmetDemand = demand - localConsumption;
+
+                          const parts = [];
+                          if (surplus > 0) parts.push(`SUP ${surplus}`);
+                          if (unmetDemand > 0) parts.push(`DEM ${unmetDemand}`);
+                          if (parts.length === 0 && demand > 0) parts.push(`SELF ${localConsumption}`);
+
+                          return parts.length > 0 ? parts.join(' / ') : '—';
                         })()}
                      </div>
                   </div>

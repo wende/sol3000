@@ -47,6 +47,18 @@ export const BUILDINGS = {
     production: { metals: 0, credits: 0 },
     energyUsage: 5,
     buildTime: 12000
+  },
+  logisticsCenter: {
+    id: 'logisticsCenter',
+    name: 'Logistics Center',
+    description: 'Acts as a relay hub for supply chains, enabling multi-hop resource distribution.',
+    baseCost: { credits: 150 },
+    costFactor: 1.15,
+    buildTimeFactor: 1.5,
+    production: { metals: 0, credits: 0 },
+    energyUsage: 4,
+    buildTime: 8000,
+    isLogisticsHub: true // Special flag to mark this system as a relay point
   }
 };
 

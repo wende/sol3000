@@ -264,10 +264,21 @@ export function createGameState() {
       totalCreditsRate += rates.credits;
     });
 
-    // Add income from metal trade flows
+    // Add income from metal trade flows (inter-system trades)
     const flows = tradeFlows();
     const totalMetalTraded = flows.flows.reduce((sum, flow) => sum + flow.amount, 0);
     totalCreditsRate += totalMetalTraded * TRADE_INCOME_PER_METAL;
+
+    // Add income from local consumption (production satisfying local demand)
+    ownedSystems.forEach(system => {
+      const oreMineLevel = system.buildings?.oreMine?.level || 0;
+      const production = oreMineLevel * BUILDINGS.oreMine.supplyPerLevel;
+      const demand = system.market?.metals?.demand || 0;
+      const localConsumption = Math.min(production, demand);
+
+      // Local consumption generates credits just like exports
+      totalCreditsRate += localConsumption * TRADE_INCOME_PER_METAL;
+    });
 
     return totalCreditsRate;
   };

@@ -339,13 +339,19 @@ export const GalaxyMap = (props) => {
     new Map(props.data.systems.map(s => [s.id, s]))
   );
 
-  // Supply comes from oreMine buildings for Player-owned systems
-  const hasMetalsSupply = (system) => {
-    if (system?.owner !== 'Player') return false;
+  // Helper functions for supply/demand detection
+  const getMetalsProduction = (system) => {
+    if (system?.owner !== 'Player') return 0;
     const oreMineLevel = system.buildings?.oreMine?.level || 0;
-    return oreMineLevel > 0;
+    return oreMineLevel * 200; // BUILDINGS.oreMine.supplyPerLevel = 200
   };
-  const hasMetalsDemand = (system) => (system?.market?.metals?.demand || 0) > 0;
+
+  const getMetalsDemand = (system) => {
+    return system?.market?.metals?.demand || 0;
+  };
+
+  const hasMetalsSupply = (system) => getMetalsProduction(system) > 0;
+  const hasMetalsDemand = (system) => getMetalsDemand(system) > 0;
 
   // Debug: Log route states when they change
   createEffect(() => {
@@ -514,13 +520,43 @@ export const GalaxyMap = (props) => {
               const sourceSystem = systemMap().get(route.source.id);
               const targetSystem = systemMap().get(route.target.id);
 
-              const connectsMetalsSupplyDemand =
-                (hasMetalsSupply(sourceSystem) && hasMetalsDemand(targetSystem)) ||
-                (hasMetalsDemand(sourceSystem) && hasMetalsSupply(targetSystem));
-              const tradeReverse = hasMetalsDemand(sourceSystem) && hasMetalsSupply(targetSystem);
+              // Create reactive memo for route path segments
+              // This ensures the component re-renders when tradeFlows changes
+              const routePathSegments = createMemo(() =>
+                props.tradeFlows?.routePaths?.get(routeId) || []
+              );
+              const isMultiHopTrade = createMemo(() => routePathSegments().length > 0);
 
-              // Determine demand system ID for satisfaction lookup
-              const demandSystemId = tradeReverse ? sourceSystem.id : targetSystem.id;
+              // For multi-hop: use path direction info
+              // For direct: use old logic
+              const connectsMetalsSupplyDemand = createMemo(() => {
+                if (isMultiHopTrade()) {
+                  return true; // Multi-hop: route is part of a trade path
+                } else {
+                  // Direct connection: original logic
+                  return (hasMetalsSupply(sourceSystem) && hasMetalsDemand(targetSystem)) ||
+                         (hasMetalsDemand(sourceSystem) && hasMetalsSupply(targetSystem));
+                }
+              });
+
+              const tradeReverse = createMemo(() => {
+                if (isMultiHopTrade()) {
+                  // Use the first path segment to determine direction
+                  const firstSegment = routePathSegments()[0];
+                  return firstSegment.from === targetSystem.id; // Flow goes toward source
+                } else {
+                  return hasMetalsDemand(sourceSystem) && hasMetalsSupply(targetSystem);
+                }
+              });
+
+              const demandSystemId = createMemo(() => {
+                if (isMultiHopTrade()) {
+                  const firstSegment = routePathSegments()[0];
+                  return firstSegment.consumerId;
+                } else {
+                  return tradeReverse() ? sourceSystem.id : targetSystem.id;
+                }
+              });
 
               // Check if route is visible in the current fog of war state (ignoring transition)
               const isNaturallyVisible = props.visibleSystems?.visibleIds?.has(route.source.id) &&
@@ -536,12 +572,12 @@ export const GalaxyMap = (props) => {
                   isSelected={props.selectedTetherId === routeId}
                   builtFTLs={props.builtFTLs}
                   ftlConstruction={props.ftlConstruction}
-                  connectsMetalsSupplyDemand={connectsMetalsSupplyDemand}
-                  tradeReverse={tradeReverse}
+                  connectsMetalsSupplyDemand={connectsMetalsSupplyDemand()}
+                  tradeReverse={tradeReverse()}
                   onSelect={props.onTetherSelect}
                   throughput={props.tradeFlows?.routeThroughput?.get(routeId)}
                   tradeFlows={props.tradeFlows}
-                  demandSystemId={demandSystemId}
+                  demandSystemId={demandSystemId()}
                 />
               );
             }}

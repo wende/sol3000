@@ -69,37 +69,71 @@ export const SystemOverviewPanel = (props) => {
       <Show when={(() => {
         const isPlayerOwned = props.system.owner === 'Player';
         const oreMineLevel = props.system.buildings?.oreMine?.level || 0;
-        const supply = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
+        const production = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
         const demand = props.system.market?.metals?.demand || 0;
-        return supply > 0 || demand > 0;
+        return production > 0 || demand > 0;
       })()}>
         {(() => {
           const isPlayerOwned = props.system.owner === 'Player';
           const oreMineLevel = props.system.buildings?.oreMine?.level || 0;
-          const supply = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
+          const production = isPlayerOwned ? oreMineLevel * BUILDINGS.oreMine.supplyPerLevel : 0;
           const demand = props.system.market?.metals?.demand || 0;
-          const isSupply = supply > 0;
-          const total = isSupply ? supply : demand;
           const satisfaction = props.tradeFlows?.systemSatisfaction?.get(props.system.id);
-          const exported = satisfaction && isSupply ? Math.round(satisfaction.used || 0) : 0;
-          const satisfied = satisfaction && !isSupply ? Math.round(satisfaction.satisfied || 0) : 0;
-          const unexported = isSupply ? total - exported : 0;
+
+          // Local production satisfies local demand first
+          const localConsumption = Math.min(production, demand);
+          const surplus = production - localConsumption;
+          const unmetDemand = demand - localConsumption;
+
+          const hasSupply = production > 0;
+          const hasDemand = demand > 0;
+          const hasSurplus = surplus > 0;
+          const hasUnmetDemand = unmetDemand > 0;
+
+          // Calculate export/import stats
+          const exported = satisfaction?.exported || 0;
+          const imported = satisfaction?.satisfied || 0;
+          const availableSurplus = surplus - exported;
+          const totalSatisfied = localConsumption + imported;
 
           return (
             <StatBlock label="METALS MARKET">
-              <div class="flex items-center justify-between p-3 rounded-sm">
-                <StatLabel label="ROLE" value={isSupply ? 'SUPPLY' : 'DEMAND'} />
-                <StatLabel
-                  label={isSupply ? 'AVAILABLE' : 'SATISFIED'}
-                  value={isSupply ? `${unexported}/${total}` : `${satisfied}/${total}`}
-                  large={true}
-                  class="items-end text-right"
-                />
-              </div>
+              {/* Show Supply Section - only if there's surplus to export */}
+              <Show when={hasSurplus}>
+                <div class="flex items-center justify-between p-3 rounded-sm border-b border-white/10">
+                  <StatLabel label="SUPPLY" value="EXPORT" />
+                  <StatLabel
+                    label="AVAILABLE"
+                    value={`${Math.round(availableSurplus)}/${surplus}`}
+                    large={true}
+                    class="items-end text-right"
+                  />
+                </div>
+              </Show>
+
+              {/* Show Demand Section */}
+              <Show when={hasDemand}>
+                <div class="flex items-center justify-between p-3 rounded-sm">
+                  <StatLabel label="DEMAND" value={hasUnmetDemand ? 'IMPORT' : 'LOCAL'} />
+                  <StatLabel
+                    label="SATISFIED"
+                    value={`${Math.round(totalSatisfied)}/${demand}`}
+                    large={true}
+                    class="items-end text-right"
+                  />
+                </div>
+              </Show>
+
               <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
-                {isSupply
-                  ? 'Supply exports Metals to connected demand systems.'
-                  : 'Demand pays more when unmet and less when satisfied.'}
+                {hasSurplus && hasUnmetDemand
+                  ? `Local production (${localConsumption}) meets partial demand. Surplus (${surplus}) exported, shortfall (${unmetDemand}) imported.`
+                  : hasSurplus
+                  ? `Surplus production exported to other systems.`
+                  : hasUnmetDemand
+                  ? `Imports needed to meet demand. Local production: ${localConsumption}.`
+                  : hasDemand
+                  ? `All demand satisfied by local production.`
+                  : 'Supply exports Metals to connected systems.'}
               </p>
             </StatBlock>
           );
