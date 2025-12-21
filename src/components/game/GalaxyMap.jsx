@@ -41,7 +41,7 @@ export const GalaxyMap = (props) => {
   let lastZoomUpdate = 0;
   const ZOOM_UPDATE_INTERVAL = 50; // ms - debounce zoom level updates
   const [transitioningId, setTransitioningId] = createSignal(null);
-  let isAnimatingZoom = false; // Flag to skip zoom level updates during animated transitions
+  const [isAnimatingZoom, setIsAnimatingZoom] = createSignal(false); // Flag to skip zoom level updates during animated transitions
   const [isExitingSystemView, setIsExitingSystemView] = createSignal(false); // Flag to force low LOD during exit
   let lastViewState = 'galaxy';
   let lastFocusedSystem = null;
@@ -64,7 +64,7 @@ export const GalaxyMap = (props) => {
     translateExtent: [[-1000, -1000], [MAP_WIDTH + 1000, MAP_HEIGHT + 1000]],
     clickDistance: 5,
     onZoom: (event) => {
-      if (isAnimatingZoom) return;
+      if (isAnimatingZoom()) return;
       const now = Date.now();
       if (now - lastZoomUpdate > ZOOM_UPDATE_INTERVAL) {
         props.setZoomLevel(event.transform.k);
@@ -100,7 +100,7 @@ export const GalaxyMap = (props) => {
     svg.interrupt();
 
     // Skip zoom level updates during the animation to prevent flicker
-    isAnimatingZoom = true;
+    setIsAnimatingZoom(true);
 
     // Calculate center of viewport
     // Align with System View: Sidebar is 1/3 width, Star is at 240px + 48px padding
@@ -118,11 +118,11 @@ export const GalaxyMap = (props) => {
       .ease(d3.easeExpInOut) // Smooth acceleration/deceleration
       .call(zoom.transform, transform)
       .on('end.zoomLevel', () => {
-        isAnimatingZoom = false;
+        setIsAnimatingZoom(false);
         props.setZoomLevel(targetScale);
       })
       .on('interrupt.zoomLevel', () => {
-        isAnimatingZoom = false;
+        setIsAnimatingZoom(false);
       });
   };
 
@@ -137,7 +137,7 @@ export const GalaxyMap = (props) => {
     svg.interrupt();
 
     // Skip zoom level updates during the animation to prevent flicker
-    isAnimatingZoom = true;
+    setIsAnimatingZoom(true);
 
     const translateX = (window.innerWidth / 2) - (CENTER_X * targetScale);
     const translateY = (window.innerHeight / 2) - (CENTER_Y * targetScale);
@@ -147,11 +147,11 @@ export const GalaxyMap = (props) => {
       .ease(d3.easeCubicInOut)
       .call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(targetScale))
       .on('end.zoomLevel', () => {
-        isAnimatingZoom = false;
+        setIsAnimatingZoom(false);
         props.setZoomLevel(targetScale);
       })
       .on('interrupt.zoomLevel', () => {
-        isAnimatingZoom = false;
+        setIsAnimatingZoom(false);
       });
   };
 
@@ -189,13 +189,13 @@ export const GalaxyMap = (props) => {
         // Small delay to ensure DOM is ready
         homeZoomTimeoutId = setTimeout(() => {
           // Skip zoom level updates during the animation to prevent flicker
-          isAnimatingZoom = true;
+          setIsAnimatingZoom(true);
 
           // Use simpler zoom for initial home focus
           const svg = getSvgSelection();
           const zoom = getZoomBehavior();
           if (!svg || !zoom) {
-            isAnimatingZoom = false;
+            setIsAnimatingZoom(false);
             return;
           }
           const targetScale = 1.5;
@@ -208,11 +208,11 @@ export const GalaxyMap = (props) => {
             .duration(1200)
             .call(zoom.transform, transform)
             .on('end.zoomLevel', () => {
-              isAnimatingZoom = false;
+              setIsAnimatingZoom(false);
               props.setZoomLevel(targetScale);
             })
             .on('interrupt.zoomLevel', () => {
-              isAnimatingZoom = false;
+              setIsAnimatingZoom(false);
             });
 
           hasZoomedToHome = true;
@@ -597,7 +597,7 @@ export const GalaxyMap = (props) => {
               shouldFade={props.fogTransitioning && !props.visibleSystems?.visibleIds?.has(sys.id)}
               shouldFadeIn={isNewlyRevealed(sys.id)}
               zoomLevel={props.zoomLevel}
-              forceLowLOD={isExitingSystemView()}
+              forceLowLOD={isExitingSystemView() || isAnimatingZoom()}
               onClick={(e) => handleSystemClick(e, sys)}
               onDoubleClick={(e) => handleSystemDoubleClick(e, sys)}
               satisfaction={props.tradeFlows?.systemSatisfaction?.get(sys.id)}
