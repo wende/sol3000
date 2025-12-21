@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
 import { createGameState, BUILDINGS, getBuildingCost, calculateVisibleSystems } from './gameState';
+import { BASE_CREDIT_RATE, TICK_INTERVAL } from './gameState/constants';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -817,7 +818,53 @@ describe('gameState', () => {
     });
   });
 
-  describe('FTL Tether Building (Integration)', () => {
+  describe('Credit Production', () => {
+    it('should have a base credit production rate', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.loadState(); // This calls newGame and starts the loop
+        
+        // Ensure game loop is active and home system is set
+        vi.advanceTimersByTime(1100);
+
+        const initialCredits = gameState.credits();
+        const initialCreditsRate = gameState.creditsRate();
+        
+        expect(initialCreditsRate).toBeGreaterThanOrEqual(BASE_CREDIT_RATE); // Should be at least 1
+
+        const timeToAdvance = 5000; // 5 seconds
+        vi.advanceTimersByTime(timeToAdvance); // Advance by 5 seconds
+
+        const finalCredits = gameState.credits();
+        const expectedCreditsIncrease = initialCreditsRate * (timeToAdvance / 1000);
+        
+        // Due to floating point math and tick intervals, we check within a small delta
+        expect(finalCredits).toBeCloseTo(initialCredits + expectedCreditsIncrease);
+
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+
+    it('should show correct credit rate on new game', () => {
+      createRoot(dispose => {
+        const gameState = createGameState();
+        gameState.newGame(); // This starts the game with a home system
+
+        // Advance enough time for the game loop to process a few ticks
+        vi.advanceTimersByTime(10 * TICK_INTERVAL); // 10 ticks
+
+        // At the start of a new game, with no trade hubs and no trade,
+        // the credit rate should be exactly the base rate.
+        // We assert using toBeCloseTo because the rate is computed based on deltas
+        // and might have tiny floating point variations.
+        expect(gameState.creditsRate()).toBeCloseTo(BASE_CREDIT_RATE);
+        
+        gameState.stopGameLoop();
+        dispose();
+      });
+    });
+  });
     it('should start FTL construction and deduct credits', () => {
       createRoot(dispose => {
         const gameState = createGameState();

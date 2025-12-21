@@ -11,7 +11,8 @@ import {
   STORAGE_KEY,
   TICK_INTERVAL,
   TRADE_INCOME_PER_METAL,
-  RESOURCE_MULTIPLIERS
+  RESOURCE_MULTIPLIERS,
+  BASE_CREDIT_RATE
 } from './gameState/constants';
 
 /**
@@ -256,7 +257,7 @@ export function createGameState() {
     const ownedSystems = galaxy.systems.filter(s => s.owner === 'Player');
     const techBonuses = calculateTechBonuses(tech().researched);
 
-    let totalCreditsRate = 0;
+    let totalCreditsRate = BASE_CREDIT_RATE;
 
     ownedSystems.forEach(system => {
       const energy = calculateSystemEnergy(system);
