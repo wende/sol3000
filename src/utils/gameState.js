@@ -963,11 +963,8 @@ export function createGameState() {
   const bootstrapNewGalaxy = () => {
     console.log('✨ Bootstrapping new galaxy...');
     const newGalaxy = generateGalaxy();
-    // Fix: Set home system ID immediately to prevent corruption check failure
-    const homeSystem = newGalaxy.systems.find(s => s.owner === 'Player');
-    if (homeSystem) setHomeSystemId(homeSystem.id);
+
     setGalaxyData(newGalaxy);
-    startGameLoop();
     return false;
   };
 
@@ -991,7 +988,8 @@ export function createGameState() {
           console.error('This usually means the save file was corrupted or truncated');
           alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThe save file could not be read. Starting a new game.\n\nTechnical details: ${parseError.message}`);
           localStorage.removeItem(STORAGE_KEY);
-          return bootstrapNewGalaxy();
+          bootstrapNewGalaxy(); // Just bootstrap, don't return its value
+          return false; // Indicate load failed
         }
 
         // Validate saved data - detect corruption
@@ -1021,7 +1019,8 @@ export function createGameState() {
           alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nThis typically happens if the save was interrupted. Starting a new game.`);
 
           localStorage.removeItem(STORAGE_KEY);
-          return bootstrapNewGalaxy();
+          bootstrapNewGalaxy(); // Just bootstrap, don't return its value
+          return false; // Indicate load failed
         }
 
         console.log('✓ Save data validation passed');
@@ -1102,24 +1101,28 @@ export function createGameState() {
 
         // Energy and production will be recalculated from buildings per system
         startGameLoop();
-        return true;
+        return true; // Indicate successful load
       }
     } catch (error) {
       const errorMsg = `Unexpected error loading save file`;
       console.error('❌ SAVE LOAD FAILED - UNEXPECTED ERROR');
       console.error('Error type:', error.constructor.name);
       console.error('Error message:', error.message);
-      console.error('Stack trace:', error.stack);
-      console.error('This is a bug - please report it with the above details');
-
-      alert(`⚠️ Save Load Failed\n\n${errorMsg}\n\nAn unexpected error occurred. Starting a new game.\n\nTechnical details: ${error.message}\n\nPlease report this issue.`);
-
+      if (error.name === 'QuotaExceededError') {
+        console.error('LocalStorage quota exceeded! Save file is too large.');
+        alert('⚠️ Save Failed\n\nLocalStorage quota exceeded. Your save file is too large.\n\nThis is a critical issue. Please report it.');
+      } else {
+        console.error('Stack trace:', error.stack);
+        alert(`⚠️ Save Failed\n\nFailed to save game state.\n\nTechnical details: ${error.message}\n\nYour progress may be lost. Please report this issue.`);
+      }
       localStorage.removeItem(STORAGE_KEY);
+      // No need to bootstrap here, as the App component will handle what to do if loadState returns false
     }
 
-    // If no saved state, generate new galaxy
+    // If no saved state, generate new galaxy and indicate failure to load (as there was no *saved* game)
     console.log('📂 No saved game found, generating new galaxy');
-    return bootstrapNewGalaxy();
+    bootstrapNewGalaxy(); // Just bootstrap, don't return its value
+    return false; // Indicate load failed (no saved game was found)
   };
 
   /**
