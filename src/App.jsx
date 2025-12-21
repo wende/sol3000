@@ -199,6 +199,7 @@ export default function App() {
           <Show when={gameState.viewState() === 'system' || gameState.viewState() === 'planet'}>
             <SystemView
               system={viewedSystem()}
+              gameState={gameState}
               onBack={() => gameState.exitSystemView()}
               onPlanetSelect={(planetId) => gameState.enterPlanetView(planetId)}
             />

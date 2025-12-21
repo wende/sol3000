@@ -9,7 +9,6 @@ import { getScanInfo, SCAN_COST } from '../../operations/scan';
 /**
  * @typedef {Object} SystemOverviewPanelProps
  * @property {Object} system - The selected system
- * @property {Function} onManageBuildings - Callback to show buildings view
  * @property {Function} onLaunchShip - Callback to show launch view
  * @property {Object} gameState - The game state object
  * @property {number} now - Current time for progress bars
@@ -162,18 +161,6 @@ export const SystemOverviewPanel = (props) => {
         </StatBlock>
       </Show>
 
-      {/* Action Buttons - Player System */}
-      <Show when={props.system.owner === 'Player'}>
-        <div class="space-y-3 pt-4">
-          <button
-            id="sidebar-manage-buildings-btn"
-            class="w-full bg-white text-black py-3 text-xs tracking-[0.2em] font-bold hover:bg-gray-200 transition-colors"
-            onClick={props.onManageBuildings}
-          >
-            MANAGE BUILDINGS
-          </button>
-        </div>
-      </Show>
 
       {/* Action Buttons - Unclaimed System */}
       <Show when={props.system.owner === 'Unclaimed'}>

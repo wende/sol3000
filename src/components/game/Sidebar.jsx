@@ -1,6 +1,5 @@
 import { createSignal, createEffect, onCleanup, Show } from 'solid-js';
 import { GlassPanel } from '../common/GlassPanel';
-import { BuildingList } from './BuildingList';
 import { DestinationSelector } from './DestinationSelector';
 import { SidebarHeader } from './SidebarHeader';
 import { SystemOverviewPanel } from './SystemOverviewPanel';
@@ -23,7 +22,7 @@ import { TetherInfoPanel } from './TetherInfoPanel';
 export const Sidebar = (props) => {
   const isOpen = () => (!!props.system || !!props.tether) && props.gameState.viewState() === 'galaxy';
   const [isVisible, setIsVisible] = createSignal(false);
-  const [view, setView] = createSignal('overview'); // 'overview' | 'buildings' | 'launch'
+  const [view, setView] = createSignal('overview'); // 'overview' | 'launch'
   const [now, setNow] = createSignal(Date.now());
   let closeTimer = null;
 
@@ -93,7 +92,7 @@ export const Sidebar = (props) => {
 
   return (
     <Show when={isVisible()}>
-      <Show when={isOpen() && (view() === 'buildings' || view() === 'launch')}>
+      <Show when={isOpen() && view() === 'launch'}>
         <div
           class="fixed inset-0 transition-opacity duration-300 ease-out opacity-100 pointer-events-auto"
           style={{ "z-index": 49, background: "rgba(0, 0, 0, 0.35)" }}
@@ -107,7 +106,7 @@ export const Sidebar = (props) => {
       >
         <GlassPanel
           id="sidebar-panel"
-          class={`h-full ${view() === 'buildings' ? 'sidebar-buildings' : view() === 'launch' ? 'sidebar-launch' : 'sidebar-overview'}`}
+          class={`h-full ${view() === 'launch' ? 'sidebar-launch' : 'sidebar-overview'}`}
           style={{
             "will-change": "width, opacity",
           }}
@@ -128,13 +127,8 @@ export const Sidebar = (props) => {
                   gameState={props.gameState}
                   now={now()}
                   tradeFlows={props.tradeFlows}
-                  onManageBuildings={() => setView('buildings')}
                   onLaunchShip={() => setView('launch')}
                 />
-              </Show>
-
-              <Show when={view() === 'buildings'}>
-                <BuildingList system={props.system} gameState={props.gameState} />
               </Show>
 
               <Show when={view() === 'launch'}>

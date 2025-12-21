@@ -1,12 +1,23 @@
 import { Show, For, createSignal, onCleanup } from 'solid-js';
-import { Pickaxe, Zap, Coins, Rocket, Factory } from 'lucide-solid';
+import { Pickaxe, Zap, Coins, Rocket } from 'lucide-solid';
 import { StatBlock } from '../common/StatBlock';
 import { BUILDINGS, COLONY_SHIP, getBuildingCost } from '../../utils/gameState';
 import { formatTime } from '../../utils/format';
 import { ProgressBar } from '../common/ProgressBar';
 import { GlassCard } from '../common/GlassCard';
 import { MiniPanel } from '../common/MiniPanel';
+import { BuildingConstruct } from '../common/BuildingConstruct';
 import './BuildingList.css';
+
+/**
+ * Map building IDs to BuildingConstruct types
+ */
+const BUILDING_CONSTRUCT_MAP = {
+  oreMine: 'borehole',
+  solarPlant: 'solar-array',
+  tradeHub: 'vault',
+  shipyard: 'hangar',
+};
 
 /**
  * @typedef {Object} BuildingListProps
@@ -14,23 +25,6 @@ import './BuildingList.css';
  * @property {Object} gameState - The game state object with signals and actions
  */
 
-/**
- * Get icon for building type
- */
-const BuildingIcon = ({ buildingId, size = 18 }) => {
-  switch (buildingId) {
-    case 'oreMine':
-      return <Pickaxe size={size} class="text-white" />;
-    case 'solarPlant':
-      return <Zap size={size} class="text-white" />;
-    case 'tradeHub':
-      return <Coins size={size} class="text-white" />;
-    case 'shipyard':
-      return <Rocket size={size} class="text-white" />;
-    default:
-      return <Factory size={size} class="text-gray-400" />;
-  }
-};
 
 /**
  * Component for managing buildings in a system.
@@ -171,16 +165,17 @@ export function BuildingList(props) {
                 interactive={true}
               >
                 <div class="building-icon">
-                  <div class="icon-placeholder">
-                    <BuildingIcon buildingId={building.id} size={24} />
-                  </div>
+                  <BuildingConstruct
+                    type={BUILDING_CONSTRUCT_MAP[building.id] || 'monolith'}
+                    size={48}
+                    interactive={false}
+                  />
                 </div>
                 <div class="building-info">
                   <div class="building-header">
                     <span class="building-name">{building.name}</span>
                     <span class="building-level">Lvl {level()}</span>
                   </div>
-                  <div class="building-desc">{building.description}</div>
                   <Show when={level() > 0 || production()}>
                     <div class="building-production text-gray-300">{production()}</div>
                   </Show>
@@ -242,15 +237,16 @@ export function BuildingList(props) {
         <StatBlock label="SHIP CONSTRUCTION" class="mt-6 pt-6">
           <GlassCard variant={colonyShipQueueStatus().isActive ? 'active' : colonyShipQueueStatus().isQueued ? 'queued' : 'default'} interactive={true}>
             <div class="building-icon">
-              <div class="icon-placeholder">
-                <Rocket size={24} class="text-white" />
-              </div>
+              <BuildingConstruct
+                type="tether"
+                size={48}
+                interactive={false}
+              />
             </div>
             <div class="building-info">
               <div class="building-header">
                 <span class="building-name">Colony Ship</span>
               </div>
-              <div class="building-desc">Colonizes unclaimed star systems.</div>
               <div class="building-cost">
                 <span class={resources().ore >= COLONY_SHIP.cost.ore ? 'cost-ok' : 'cost-err'}>
                   {COLONY_SHIP.cost.ore} Ore
