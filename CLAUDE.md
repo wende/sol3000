@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Sol3000 is a minimalist 4X strategy browser game featuring a procedurally-generated galaxy map with a black-and-white aesthetic and glassmorphism UI. Built with SolidJS for reactive UI and D3.js for interactive galaxy visualization.
 
+> **See [PROJECT_TREE.md](./PROJECT_TREE.md)** for a complete feature map, component dependency graph, and utility function reference.
+
 ## Development Commands
 
 ```bash
