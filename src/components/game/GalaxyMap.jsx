@@ -99,7 +99,7 @@ export const GalaxyMap = (props) => {
 
     svg.interrupt();
 
-    // Skip zoom level updates during the animation to prevent flicker
+    // Block zoom level updates during animation to prevent reactive state changes
     setIsAnimatingZoom(true);
 
     // Calculate center of viewport
@@ -119,7 +119,8 @@ export const GalaxyMap = (props) => {
       .call(zoom.transform, transform)
       .on('end.zoomLevel', () => {
         setIsAnimatingZoom(false);
-        props.setZoomLevel(targetScale);
+        // Don't update zoom level here - the view will transition to SystemView
+        // and updating would cause unnecessary LOD re-renders that flicker
       })
       .on('interrupt.zoomLevel', () => {
         setIsAnimatingZoom(false);
@@ -597,7 +598,7 @@ export const GalaxyMap = (props) => {
               shouldFade={props.fogTransitioning && !props.visibleSystems?.visibleIds?.has(sys.id)}
               shouldFadeIn={isNewlyRevealed(sys.id)}
               zoomLevel={props.zoomLevel}
-              forceLowLOD={isExitingSystemView() || isAnimatingZoom()}
+              forceLowLOD={isExitingSystemView()}
               onClick={(e) => handleSystemClick(e, sys)}
               onDoubleClick={(e) => handleSystemDoubleClick(e, sys)}
               satisfaction={props.tradeFlows?.systemSatisfaction?.get(sys.id)}

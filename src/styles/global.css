@@ -94,16 +94,14 @@ button {
 .star {
   animation: starPulse 4s ease-in-out infinite;
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.65));
+  transition: filter 150ms ease-out;
 }
 
-.star.lod-ultra-low {
-  animation: starPulseSlow 6s ease-in-out infinite !important;
-  filter: none !important;
-}
-
+.star.lod-ultra-low,
 .star.lod-low {
-  animation: starPulseSlow 5s ease-in-out infinite !important;
+  animation: none !important;
   filter: none !important;
+  transition: none !important;
 }
 
 .selected-glow {
@@ -136,7 +134,7 @@ button {
   animation: none !important;
   filter: drop-shadow(0 0 var(--transition-glow-outer, 60px) var(--star-color))
           drop-shadow(0 0 var(--transition-glow-inner, 15px) white) !important;
-  transition: filter 2s ease-in-out, opacity 1s ease-in-out;
+  transition: none !important;
 }
 
 .progress-fill {
